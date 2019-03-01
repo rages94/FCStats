@@ -14,7 +14,7 @@ from bokeh.plotting import figure, output_file, show
 import form
 
 IMPLICITLY_WAIT = 10
-SLEEP_ON_PAGE = 0.7
+SLEEP_ON_PAGE = 0.3
 PLAYERS = "https://fastcup.net/players.html"
 FIGHT = 'https://fastcup.net/fight.html?id=%s'
 
@@ -201,7 +201,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         p = figure(title="Щелкай на битвы!", x_axis_label='Номер битвы', y_axis_label='Скилл', tools="pan,tap,wheel_zoom",
                    active_drag="pan", tooltips=TOOLTIPS, sizing_mode='stretch_both')
 
-        p.line(x=x, y=y, line_width=2)
+        p.line('x', 'y', source=source, line_width=2)
         p.circle('x', 'y', size=8, source=source, legend="Битвы")
 
         url = 'https://fastcup.net/fight.html?id=@fights'
