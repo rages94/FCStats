@@ -1,5 +1,6 @@
 import sys
 import time
+from os import path, remove
 
 from PyQt5 import QtWidgets
 from selenium import webdriver
@@ -18,8 +19,9 @@ SLEEP_ON_PAGE = 0.7
 PLAYERS = "https://fastcup.net/players.html"
 FIGHT = 'https://fastcup.net/fight.html?id=%s'
 
+# form.ui -> form.py: pyuic5 form.ui -o form.py
 # build: pyinstaller -F -w --clean main.py
-class ExampleApp(QtWidgets.QMainWindow, form.Ui_StatisticFastcup):
+class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
     def __init__(self):
         # access to variables and methods form.py
         super().__init__()
@@ -28,10 +30,12 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_StatisticFastcup):
         self.setupUi(self)
 
         # start function by button
-        self.btn_id.clicked.connect(self.main_process)
+        self.button_create_stats.clicked.connect(self.main_process)
         # press the button by enter
-        self.btn_id.setAutoDefault(True)
-        self.lineEdit.returnPressed.connect(self.btn_id.click)
+        self.button_create_stats.setAutoDefault(True)
+        self.line_edit.returnPressed.connect(self.button_create_stats.click)
+
+        self.button_load_file.clicked.connect(self.load_data)
 
         # selenium settings
         self.capabilities = {
@@ -42,7 +46,9 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_StatisticFastcup):
         self.driver = None
 
     def main_process(self):
-        player_name = self.lineEdit.text()
+        save_in_file = self.checkbox_save_in_file.isChecked()
+        self.save_stats = self.checkbox_save_stats.isChecked()
+        player_name = self.line_edit.text()
         self.init_web_driver()
         # open the page
         self.driver.get(PLAYERS)
@@ -60,17 +66,32 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_StatisticFastcup):
                 self.driver.close()
                 data = ["\n".join(page) for page in data]
                 data = "\n".join(data)
-                self.save_data(data)
+                if save_in_file:
+                    self.save_data(data)
             except ValueError:
                 self.driver.close()
                 QtWidgets.QMessageBox.about(self, "Warning!", "Have no data!")
             else:
-                # visualization
-                prepared_data = self.data_preparation(data)
-                df = self.create_dataframe(prepared_data)
-                df_wins_defeats = df[(df.Результат == "Победа") | (df.Результат == "Поражение")]
+                self.visualization(data, player_name)
 
-                self.build_graph_skill_fights(df_wins_defeats, player_name)
+                # self.common_table(dt)
+
+    def load_data(self):
+        self.save_stats = self.checkbox_save_stats.isChecked()
+        directory = QtWidgets.QFileDialog.getOpenFileName(self, "Load file", filter="*.txt")
+        path_to_file = directory[0]
+        if path_to_file:
+            with open(path_to_file, 'r', encoding='utf-8') as f:
+                data = f.read()
+            file_name = path_to_file.split('/')[-1][:-4]
+            self.visualization(data, file_name)
+
+    def visualization(self, data, player_name):
+        prepared_data = self.data_preparation(data)
+        df = self.create_dataframe(prepared_data)
+        df_wins_defeats = df[(df.Результат == "Победа") | (df.Результат == "Поражение")]
+        self.build_graph_skill_fights(df_wins_defeats, player_name)
+
 
     def _get_element_list(self, xpath: str):
         return self.driver.find_element(By.XPATH, xpath).text.split('\n')
@@ -103,6 +124,8 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_StatisticFastcup):
         Don't try to understand it, just believe"""
         dt = []
         for line in data.split("\n"):
+            if not line:
+                continue
             ln = line.split()
             fight = ln[0]
             date = " ".join(ln[1:4])
@@ -188,6 +211,10 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_StatisticFastcup):
 
         # show the results
         show(p)
+
+        if not self.save_stats:
+            time.sleep(3)  # for load file
+            remove(f"Fights_{player_name}.html")
 
     @staticmethod
     def replace_unsupported_chars(string: str) -> str:
