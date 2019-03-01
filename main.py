@@ -70,7 +70,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_StatisticFastcup):
                 df = self.create_dataframe(prepared_data)
                 df_wins_defeats = df[(df.Результат == "Победа") | (df.Результат == "Поражение")]
 
-                self.build_graph_skill_fights(df_wins_defeats)
+                self.build_graph_skill_fights(df_wins_defeats, player_name)
 
     def _get_element_list(self, xpath: str):
         return self.driver.find_element(By.XPATH, xpath).text.split('\n')
@@ -150,8 +150,9 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_StatisticFastcup):
             with open(directory[0], "w") as f:
                 f.write(data)
 
-    def build_graph_skill_fights(self, df: DataFrame):
-        output_file("Fights.html")
+    def build_graph_skill_fights(self, df: DataFrame, player_name: str):
+        player_name = self.replace_unsupported_chars(player_name)
+        output_file(f"Fights_{player_name}.html")
 
         y = df.Скилл
         x = range(1, len(y) + 1)
@@ -187,6 +188,12 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_StatisticFastcup):
 
         # show the results
         show(p)
+
+    @staticmethod
+    def replace_unsupported_chars(string: str) -> str:
+        for i in r'/\:*?«<>|"':
+            string = string.replace(i, '_')
+        return string
 
 
 def main():
