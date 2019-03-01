@@ -1,5 +1,6 @@
 import sys
 import time
+from os import path, remove
 
 from PyQt5 import QtWidgets
 from selenium import webdriver
@@ -12,14 +13,14 @@ from bokeh.plotting import figure, output_file, show
 
 import form
 
-# TODO: load stats from file
 IMPLICITLY_WAIT = 10
-SLEEP_ON_PAGE = 0.7
+SLEEP_ON_PAGE = 0.3
 PLAYERS = "https://fastcup.net/players.html"
 FIGHT = 'https://fastcup.net/fight.html?id=%s'
 
+# form.ui -> form.py: pyuic5 form.ui -o form.py
 # build: pyinstaller -F -w --clean main.py
-class ExampleApp(QtWidgets.QMainWindow, form.Ui_StatisticFastcup):
+class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
     def __init__(self):
         # access to variables and methods form.py
         super().__init__()
@@ -28,10 +29,12 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_StatisticFastcup):
         self.setupUi(self)
 
         # start function by button
-        self.btn_id.clicked.connect(self.main_process)
+        self.button_create_stats.clicked.connect(self.main_process)
         # press the button by enter
-        self.btn_id.setAutoDefault(True)
-        self.lineEdit.returnPressed.connect(self.btn_id.click)
+        self.button_create_stats.setAutoDefault(True)
+        self.line_edit.returnPressed.connect(self.button_create_stats.click)
+
+        self.button_load_file.clicked.connect(self.load_data)
 
         # selenium settings
         self.capabilities = {
@@ -42,7 +45,9 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_StatisticFastcup):
         self.driver = None
 
     def main_process(self):
-        player_name = self.lineEdit.text()
+        save_in_file = self.checkbox_save_in_file.isChecked()
+        self.save_stats = self.checkbox_save_stats.isChecked()
+        player_name = self.line_edit.text()
         self.init_web_driver()
         # open the page
         self.driver.get(PLAYERS)
@@ -60,17 +65,32 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_StatisticFastcup):
                 self.driver.close()
                 data = ["\n".join(page) for page in data]
                 data = "\n".join(data)
-                self.save_data(data)
+                if save_in_file:
+                    self.save_data(data)
             except ValueError:
                 self.driver.close()
                 QtWidgets.QMessageBox.about(self, "Warning!", "Have no data!")
             else:
-                # visualization
-                prepared_data = self.data_preparation(data)
-                df = self.create_dataframe(prepared_data)
-                df_wins_defeats = df[(df.Результат == "Победа") | (df.Результат == "Поражение")]
+                self.visualization(data, player_name)
 
-                self.build_graph_skill_fights(df_wins_defeats)
+                # self.common_table(dt)
+
+    def load_data(self):
+        self.save_stats = self.checkbox_save_stats.isChecked()
+        directory = QtWidgets.QFileDialog.getOpenFileName(self, "Load file", filter="*.txt")
+        path_to_file = directory[0]
+        if path_to_file:
+            with open(path_to_file, 'r', encoding='utf-8') as f:
+                data = f.read()
+            file_name = path_to_file.split('/')[-1][:-4]
+            self.visualization(data, file_name)
+
+    def visualization(self, data, player_name):
+        prepared_data = self.data_preparation(data)
+        df = self.create_dataframe(prepared_data)
+        df_wins_defeats = df[(df.Результат == "Победа") | (df.Результат == "Поражение")]
+        self.build_graph_skill_fights(df_wins_defeats, player_name)
+
 
     def _get_element_list(self, xpath: str):
         return self.driver.find_element(By.XPATH, xpath).text.split('\n')
@@ -103,6 +123,8 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_StatisticFastcup):
         Don't try to understand it, just believe"""
         dt = []
         for line in data.split("\n"):
+            if not line:
+                continue
             ln = line.split()
             fight = ln[0]
             date = " ".join(ln[1:4])
@@ -147,11 +169,12 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_StatisticFastcup):
         """"Save data in text file"""
         directory = QtWidgets.QFileDialog.getSaveFileName(self, "Save file", filter="*.txt")
         if directory[0]:
-            with open(directory[0], "w") as f:
+            with open(directory[0], "w", encoding='utf-8') as f:
                 f.write(data)
 
-    def build_graph_skill_fights(self, df: DataFrame):
-        output_file("Fights.html")
+    def build_graph_skill_fights(self, df: DataFrame, player_name: str):
+        player_name = self.replace_unsupported_chars(player_name)
+        output_file(f"Fights_{player_name}.html")
 
         y = df.Скилл
         x = range(1, len(y) + 1)
@@ -178,7 +201,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_StatisticFastcup):
         p = figure(title="Щелкай на битвы!", x_axis_label='Номер битвы', y_axis_label='Скилл', tools="pan,tap,wheel_zoom",
                    active_drag="pan", tooltips=TOOLTIPS, sizing_mode='stretch_both')
 
-        p.line(x=x, y=y, line_width=2)
+        p.line('x', 'y', source=source, line_width=2)
         p.circle('x', 'y', size=8, source=source, legend="Битвы")
 
         url = 'https://fastcup.net/fight.html?id=@fights'
@@ -187,6 +210,16 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_StatisticFastcup):
 
         # show the results
         show(p)
+
+        if not self.save_stats:
+            time.sleep(3)  # for load file
+            remove(f"Fights_{player_name}.html")
+
+    @staticmethod
+    def replace_unsupported_chars(string: str) -> str:
+        for i in r'/\:*?«<>|"':
+            string = string.replace(i, '_')
+        return string
 
 
 def main():

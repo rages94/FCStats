@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>StatisticFastcup</class>
- <widget class="QMainWindow" name="StatisticFastcup">
+ <class>form_fcstats</class>
+ <widget class="QMainWindow" name="form_fcstats">
   <property name="enabled">
    <bool>true</bool>
   </property>
@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>300</width>
-    <height>100</height>
+    <width>350</width>
+    <height>130</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -21,36 +21,79 @@
   </property>
   <property name="minimumSize">
    <size>
-    <width>300</width>
-    <height>100</height>
+    <width>350</width>
+    <height>130</height>
    </size>
   </property>
   <property name="maximumSize">
    <size>
-    <width>300</width>
-    <height>100</height>
+    <width>350</width>
+    <height>130</height>
    </size>
   </property>
   <property name="windowTitle">
-   <string>StatisticFastcup</string>
+   <string>FCstats</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QHBoxLayout" name="horizontalLayout">
-    <item>
-     <widget class="QLineEdit" name="lineEdit">
-      <property name="placeholderText">
-       <string>Введите id пользователя</string>
-      </property>
-     </widget>
-    </item>
-    <item>
-     <widget class="QPushButton" name="btn_id">
-      <property name="text">
-       <string>Собрать данные</string>
-      </property>
-     </widget>
-    </item>
-   </layout>
+   <widget class="QWidget" name="gridLayoutWidget">
+    <property name="geometry">
+     <rect>
+      <x>6</x>
+      <y>10</y>
+      <width>331</width>
+      <height>101</height>
+     </rect>
+    </property>
+    <layout class="QGridLayout" name="gridLayout">
+     <item row="3" column="1">
+      <widget class="QPushButton" name="button_create_stats">
+       <property name="text">
+        <string>Создать</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="0">
+      <widget class="QLineEdit" name="line_edit">
+       <property name="maximumSize">
+        <size>
+         <width>200</width>
+         <height>20</height>
+        </size>
+       </property>
+       <property name="placeholderText">
+        <string>Ник или STEAM_0:X:XXXXXX</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="0">
+      <widget class="QCheckBox" name="checkbox_save_in_file">
+       <property name="text">
+        <string>Сохранить данные</string>
+       </property>
+       <property name="checked">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="1">
+      <widget class="QPushButton" name="button_load_file">
+       <property name="text">
+        <string>Загрузить из файла</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QCheckBox" name="checkbox_save_stats">
+       <property name="text">
+        <string>Сохранить статистику</string>
+       </property>
+       <property name="checked">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </widget>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
  </widget>
