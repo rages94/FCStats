@@ -13,7 +13,6 @@ from bokeh.plotting import figure, output_file, show
 
 import form
 
-# TODO: load stats from file
 IMPLICITLY_WAIT = 10
 SLEEP_ON_PAGE = 0.7
 PLAYERS = "https://fastcup.net/players.html"
@@ -170,7 +169,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         """"Save data in text file"""
         directory = QtWidgets.QFileDialog.getSaveFileName(self, "Save file", filter="*.txt")
         if directory[0]:
-            with open(directory[0], "w") as f:
+            with open(directory[0], "w", encoding='utf-8') as f:
                 f.write(data)
 
     def build_graph_skill_fights(self, df: DataFrame, player_name: str):

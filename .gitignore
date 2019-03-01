@@ -1,2 +1,5 @@
 .idea/*
 Fights_*.html
+build/*
+dist/*
+__pycache__/*
