@@ -8,7 +8,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
 from pandas import DataFrame
-from bokeh.models import ColumnDataSource, OpenURL, TapTool
+from bokeh.models import ColumnDataSource, OpenURL, TapTool, WheelZoomTool
 from bokeh.plotting import figure, output_file, show
 
 import form
@@ -196,13 +196,14 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             ('xVSx', '@size')
         ]
 
-        # TODO: active wheel_zoom
+        # TODO: fix fights in tooltips
         # create a new plot
-        p = figure(title="Щелкай на битвы!", x_axis_label='Номер битвы', y_axis_label='Скилл', tools="pan,tap,wheel_zoom",
-                   active_drag="pan", tooltips=TOOLTIPS, sizing_mode='stretch_both')
+        p = figure(title="Щелкай на битвы!", x_axis_label='Номер битвы', y_axis_label='Скилл',
+                   tools="pan,tap,wheel_zoom", active_drag="pan", tooltips=TOOLTIPS, sizing_mode='stretch_both')
 
         p.line('x', 'y', source=source, line_width=2)
         p.circle('x', 'y', size=8, source=source, legend="Битвы")
+        p.toolbar.active_scroll = p.select_one(WheelZoomTool)
 
         url = 'https://fastcup.net/fight.html?id=@fights'
         taptool = p.select(type=TapTool)
