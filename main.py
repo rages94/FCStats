@@ -174,7 +174,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
 
     def build_graph_skill_fights(self, df: DataFrame, player_name: str):
         player_name = self.replace_unsupported_chars(player_name)
-        output_file(f"Fights_{player_name}.html")
+        output_file(f"Fights_{player_name}.html", title='FCstats')
 
         y = df.Скилл
         x = range(1, len(y) + 1)
