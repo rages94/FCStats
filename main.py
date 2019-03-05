@@ -45,9 +45,16 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         self.driver = None
 
     def main_process(self):
+        # init messagebox
+        msg = QtWidgets.QMessageBox
+        msg.setStyleSheet(self, "QLabel{min-width: 200px;}")
+
         save_in_file = self.checkbox_save_in_file.isChecked()
         self.save_stats = self.checkbox_save_stats.isChecked()
         player_name = self.line_edit.text()
+        if not player_name:
+            msg.about(self, "Warning!", "<p align='left'>Enter nickname!</p>")
+            return
         self.init_web_driver()
         # open the page
         self.driver.get(PLAYERS)
@@ -57,7 +64,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             player.click()
         except NoSuchElementException:
             self.driver.close()
-            QtWidgets.QMessageBox.about(self, "Warning!", "Player not found!")
+            msg.about(self, "Warning!", "Player not found!")
         else:
             try:
                 number_of_pages = int(self._get_element_list("//div[@id='mtabs-battles']")[0].split()[-1])
@@ -69,11 +76,9 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
                     self.save_data(data)
             except ValueError:
                 self.driver.close()
-                QtWidgets.QMessageBox.about(self, "Warning!", "Have no data!")
+                msg.about(self, "Warning!", "Have no data!")
             else:
                 self.visualization(data, player_name)
-
-                # self.common_table(dt)
 
     def load_data(self):
         self.save_stats = self.checkbox_save_stats.isChecked()
