@@ -8,8 +8,10 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
 from pandas import DataFrame
-from bokeh.models import ColumnDataSource, OpenURL, TapTool, WheelZoomTool
+from bokeh.models import CustomJS, ColumnDataSource, OpenURL, TapTool, WheelZoomTool
 from bokeh.plotting import figure, output_file, show
+from bokeh.layouts import column
+from bokeh.models.widgets import CheckboxButtonGroup
 
 import form
 
@@ -209,8 +211,22 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         taptool = p.select(type=TapTool)
         taptool.callback = OpenURL(url=url)
 
+
+        def callback(source=source, window=None):
+            data = source.data
+
+            f = cb_obj.attributes.active
+            console.log(data['map'])
+
+            source.change.emit()
+
+        maps = list(set(df.Карта))
+        checkbox_button_group = CheckboxButtonGroup(labels=maps, active=list(range(len(maps))),
+                                                    callback=CustomJS.from_py_func(callback))
+        layout = column(checkbox_button_group, p)
+
         # show the results
-        show(p)
+        show(layout)
 
         if not self.save_stats:
             time.sleep(3)  # for load file
