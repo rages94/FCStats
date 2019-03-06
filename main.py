@@ -221,6 +221,56 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         if not self.save_stats:
             time.sleep(3)  # for load file
             remove(f"Fights_{player_name}.html")
+    def build_graph_maps(self, df: DataFrame, player_name: str):
+        player_name = self.replace_unsupported_chars(player_name)
+        if self.save_stats:
+            output_file(f"Fights_{player_name}.html", title='FCstats')
+
+        # prepare data
+        df_group = df.Скилл.groupby(df.Карта)
+        wins_defeats_count = df.Результат.groupby(df.Карта).value_counts()
+
+        maps = list(df_group.sum().index)
+        number_of_fights = df_group.count().values
+        skill_sum = df_group.sum().values
+        kills_sum = df.Фраги.groupby(df.Карта).sum()
+        deaths_sum = df.Смерти.groupby(df.Карта).sum()
+        wins_count = [wins_defeats_count[i].get('Победа', 0) for i in maps]
+        defeats_count = [wins_defeats_count[i].get('Поражение', 0) for i in maps]
+
+        # maps_sorted = sorted(maps, key=lambda x: skill_sum[maps.index(x)], reverse=True)
+        # number_of_fights_sorted = sorted(number_of_fights, key=lambda x: skill_sum[number_of_fights.index(x)], reverse=True)
+        # skill_sum_sorted = sorted(skill_sum, reverse=True)
+
+        source = ColumnDataSource(data=dict(
+            x=maps,
+            y=skill_sum,
+            number_of_fights=number_of_fights,
+            avg_skill=list(map(lambda x, y: x/y, skill_sum, number_of_fights)),
+            kills=kills_sum,
+            deaths=deaths_sum,
+            wins=wins_count,
+            defeats=defeats_count
+        ))
+
+        TOOLTIPS = [
+            ('Skill', '@y'),
+            ('Map', '@x'),
+            ('Number of fights', '@number_of_fights'),
+            ('Average skill', '@avg_skill{0.000}'),
+            ('K/D', '@kills/@deaths'),
+            ('Wins', '@wins'),
+            ('Defeats', '@defeats')
+        ]
+
+        p = figure(x_range=maps, title="unts", tooltips=TOOLTIPS,
+                   toolbar_location=None, tools="", sizing_mode='stretch_both')
+        p.vbar(x='x', top='y', width=0.9, source=source)
+
+        # p.xgrid.grid_line_color = None
+        p.y_range.start = min(skill_sum)
+
+        show(p)
 
     @staticmethod
     def replace_unsupported_chars(string: str) -> str:
