@@ -113,7 +113,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
 
     def create_dataframe(self, dt: [list]) -> DataFrame:
         labels = ["Игра", "Дата", "Время", "Канал", "Размер", "Карта",
-                  "Сторона", "Результат", "KD", "Скилл", "Деление", "Опыт"]
+                  "Сторона", "Результат", "Фраги", "Смерти", "Скилл", "Деление", "Опыт"]
         return DataFrame.from_records(dt, columns=labels).iloc[::-1]
 
     def init_web_driver(self):
@@ -137,7 +137,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             type_game = " ".join(ln[5:8])
             xvsx = "".join(ln[9:12])
             mp = ln[12]
-            side, result, kd, sep = "", "", "", ""
+            side, result, k, d, sep = "", "", "", "", ""
             points = 0.0
             exp = 0
             side = "T" if ln[13] == "A" else "CT"
@@ -147,7 +147,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
                 result = ln[14]
             else:
                 result = ln[14]
-                kd = ln[15]
+                k, d = map(int, ln[15].split('/'))
                 points = float(ln[16])
                 try:
                     if ln[17][0] == "(":
@@ -162,7 +162,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
                 except IndexError:
                     pass
             dt.append([fight, date, time, type_game,
-                      xvsx, mp, side, result, kd, points, sep, exp])
+                      xvsx, mp, side, result, k, d, points, sep, exp])
         return dt
 
     def search_player(self, player_name: str):
