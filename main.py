@@ -189,13 +189,14 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             x=x,
             y=y,
             fights=fights,
-            kd=df.KD,
+            kills=df.Фраги,
+            deaths=df.Смерти,
             map=df.Карта,
             size=df.Размер
         ))
 
         TOOLTIPS = [
-            ('KD', "@kd"),
+            ('K/D', "@kills/@deaths"),
             ('Skill', '@y'),
             ('Map', '@map'),
             ('xVSx', '@size')
