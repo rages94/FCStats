@@ -13,13 +13,17 @@ from bokeh.plotting import figure, output_file, show
 
 import form
 
+PATH_TO_WEBDRIVER = 'chromedriver.exe'
 IMPLICITLY_WAIT = 10
-SLEEP_ON_PAGE = 0.3
+# because fastcup raise "HTTP 429 Too Many Requests" :\
+SLEEP_ON_PAGE = 0.4
 PLAYERS = "https://fastcup.net/players.html"
 FIGHT = 'https://fastcup.net/fight.html?id=%s'
 
+
 # form.ui -> form.py: pyuic5 form.ui -o form.py
-# build: pyinstaller -F -w --clean main.py
+# build one file: pyinstaller -F -w --clean main.py
+# build one dir: pyinstaller -D -w --clean main.py
 class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
     def __init__(self):
         # access to variables and methods form.py
@@ -52,6 +56,9 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         save_in_file = self.checkbox_save_in_file.isChecked()
         self.save_stats = self.checkbox_save_stats.isChecked()
         player_name = self.line_edit.text()
+        if not path.exists(PATH_TO_WEBDRIVER):
+            msg.about(self, "Error!", "WebDriver not found!")
+            return
         if not player_name:
             msg.about(self, "Warning!", "<p align='left'>Enter nickname!</p>")
             return
@@ -106,7 +113,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             data.append(self._get_element_list("//div[@id='mtabs-battles']")[2:])
             # click next page
             self.driver.find_element(By.XPATH, "//div[@id='mtabs-battles']/a[contains(text(), '%d')]" % i).click()
-            # for page load
+            # because fastcup raise "HTTP 429 Too Many Requests" :\
             time.sleep(SLEEP_ON_PAGE)
         data.append(self._get_element_list("//div[@id='mtabs-battles']")[2:])
         return data
@@ -117,11 +124,9 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         return DataFrame.from_records(dt, columns=labels).iloc[::-1]
 
     def init_web_driver(self):
-        self.driver = webdriver.Chrome(executable_path='chromedriver.exe',
+        self.driver = webdriver.Chrome(executable_path=PATH_TO_WEBDRIVER,
                                        desired_capabilities=self.capabilities)
         self.driver.implicitly_wait(IMPLICITLY_WAIT)
-        # driver.manage().timeouts().implicitlyWait(10, TimeUnit.SECONDS)
-        # driver.manage().timeouts().setScriptTimeout(10, TimeUnit.SECONDS)
 
     def data_preparation(self, data: str) -> [list]:
         """
