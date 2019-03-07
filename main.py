@@ -221,10 +221,10 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         if not self.save_stats:
             time.sleep(3)  # for load file
             remove(f"Fights_{player_name}.html")
+
     def build_graph_maps(self, df: DataFrame, player_name: str):
         player_name = self.replace_unsupported_chars(player_name)
-        if self.save_stats:
-            output_file(f"Fights_{player_name}.html", title='FCstats')
+        output_file(f"Fights_{player_name}.html", title='FCstats')
 
         # prepare data
         df_group = df.Скилл.groupby(df.Карта)
@@ -263,14 +263,19 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             ('Defeats', '@defeats')
         ]
 
-        p = figure(x_range=maps, title="unts", tooltips=TOOLTIPS,
-                   toolbar_location=None, tools="", sizing_mode='stretch_both')
+        p = figure(x_range=maps, title="unts", tooltips=TOOLTIPS, tools="pan,wheel_zoom",
+                   toolbar_location=None, sizing_mode='stretch_both')
         p.vbar(x='x', top='y', width=0.9, source=source)
+        p.toolbar.active_scroll = p.select_one(WheelZoomTool)
 
         # p.xgrid.grid_line_color = None
         p.y_range.start = min(skill_sum)
 
         show(p)
+
+        if not self.save_stats:
+            time.sleep(3)  # for load file
+            remove(f"Fights_{player_name}.html")
 
     @staticmethod
     def replace_unsupported_chars(string: str) -> str:
