@@ -10,6 +10,8 @@ from selenium.common.exceptions import NoSuchElementException
 from pandas import DataFrame
 from bokeh.models import ColumnDataSource, OpenURL, TapTool, WheelZoomTool
 from bokeh.plotting import figure, output_file, show
+from bokeh.models.widgets import Panel, Tabs
+from bokeh.io import curdoc
 
 import form
 
@@ -101,8 +103,18 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         prepared_data = self.data_preparation(data)
         df = self.create_dataframe(prepared_data)
         df_wins_defeats = df[(df.Результат == "Победа") | (df.Результат == "Поражение")]
-        self.build_graph_skill_fights(df_wins_defeats, player_name)
 
+        player_name = self.replace_unsupported_chars(player_name)
+        output_file(f"Fights_{player_name}.html", title='FCstats')
+
+        tab_skill_fights = self.build_graph_skill_fights(df_wins_defeats)
+        tab_maps = self.build_graph_maps(df_wins_defeats)
+        tabs = Tabs(tabs=[ tab_skill_fights, tab_maps ])
+        show(tabs)
+
+        if not self.save_stats:
+            time.sleep(6)  # for load file
+            remove(f"Fights_{player_name}.html")
 
     def _get_element_list(self, xpath: str):
         return self.driver.find_element(By.XPATH, xpath).text.split('\n')
@@ -182,10 +194,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             with open(directory[0], "w", encoding='utf-8') as f:
                 f.write(data)
 
-    def build_graph_skill_fights(self, df: DataFrame, player_name: str):
-        player_name = self.replace_unsupported_chars(player_name)
-        output_file(f"Fights_{player_name}.html", title='FCstats')
-
+    def build_graph_skill_fights(self, df: DataFrame) -> Panel:
         y = df.Скилл
         x = range(1, len(y) + 1)
         fights = list(map(lambda x_: x_[1:], df.Игра))
@@ -219,18 +228,9 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         url = 'https://fastcup.net/fight.html?id=@fights'
         taptool = p.select(type=TapTool)
         taptool.callback = OpenURL(url=url)
+        return Panel(child=p, title='Skill-Fights')
 
-        # show the results
-        show(p)
-
-        if not self.save_stats:
-            time.sleep(3)  # for load file
-            remove(f"Fights_{player_name}.html")
-
-    def build_graph_maps(self, df: DataFrame, player_name: str):
-        player_name = self.replace_unsupported_chars(player_name)
-        output_file(f"Fights_{player_name}.html", title='FCstats')
-
+    def build_graph_maps(self, df: DataFrame) -> Panel:
         # prepare data
         df_group = df.Скилл.groupby(df.Карта)
         wins_defeats_count = df.Результат.groupby(df.Карта).value_counts()
@@ -275,12 +275,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
 
         # p.xgrid.grid_line_color = None
         p.y_range.start = min(skill_sum)
-
-        show(p)
-
-        if not self.save_stats:
-            time.sleep(3)  # for load file
-            remove(f"Fights_{player_name}.html")
+        return Panel(child=p, title='Skill-Maps')
 
     @staticmethod
     def replace_unsupported_chars(string: str) -> str:
