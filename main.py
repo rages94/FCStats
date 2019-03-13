@@ -25,7 +25,7 @@ FIGHT = 'https://fastcup.net/fight.html?id=%s'
 
 # form.ui -> form.py: pyuic5 form.ui -o form.py
 # build one file: pyinstaller -F -w --clean main.py
-# build one dir: pyinstaller -D -w --clean main.py
+# build one dir: pyinstaller -D -w  --clean --add-data "C:/Users/dprokazin/Desktop/Python/FC/chromedriver.exe";"." main.py
 class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
     def __init__(self):
         # access to variables and methods form.py
