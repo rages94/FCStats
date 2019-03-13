@@ -111,7 +111,9 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         tab_maps = self.build_hist(df_wins_defeats, df_wins_defeats.Карта, 'Map')
         tab_sizes = self.build_hist(df_wins_defeats, df_wins_defeats.Размер, 'Size')
         tab_sides = self.build_hist(df_wins_defeats, df_wins_defeats.Сторона, 'Side')
+        # TODO: ascending date
         tab_dates = self.build_hist(df_wins_defeats, df_wins_defeats.Дата, 'Date', False)
+        # TODO: years, hours
         tabs = Tabs(tabs=[tab_skill_fights, tab_maps, tab_sizes, tab_sides, tab_dates])
         show(tabs)
 
