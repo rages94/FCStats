@@ -109,7 +109,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
 
         tab_skill_fights = self.build_graph_skill_fights(df_wins_defeats)
         tab_maps = self.build_graph_maps(df_wins_defeats)
-        tabs = Tabs(tabs=[ tab_skill_fights, tab_maps ])
+        tabs = Tabs(tabs=[tab_skill_fights, tab_maps])
         show(tabs)
 
         if not self.save_stats:
@@ -217,11 +217,11 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         ]
 
         # TODO: fix fights in tooltips
-        # create a new plot
+        # sizing_mode='stretch_both' don't work in tabs :(
         p = figure(title="Щелкай на битвы!", x_axis_label='Номер битвы', y_axis_label='Скилл',
-                   tools="pan,tap,wheel_zoom", active_drag="pan", tooltips=TOOLTIPS, sizing_mode='stretch_both')
+                   tools="pan,tap,wheel_zoom,reset", active_drag="pan", tooltips=TOOLTIPS, width=1000, height=600)
 
-        p.line('x', 'y', source=source, line_width=2)
+        p.line('x', 'y', source=source, line_width=2, color="cornflowerblue")
         p.circle('x', 'y', size=8, source=source, legend="Битвы")
         p.toolbar.active_scroll = p.select_one(WheelZoomTool)
 
@@ -268,9 +268,9 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             ('Defeats', '@defeats')
         ]
 
-        p = figure(x_range=maps, title="unts", tooltips=TOOLTIPS, tools="pan,wheel_zoom",
-                   toolbar_location=None, sizing_mode='stretch_both')
-        p.vbar(x='x', top='y', width=0.9, source=source)
+        # sizing_mode='stretch_both' don't work in tabs :(
+        p = figure(x_range=maps, title="unts", tooltips=TOOLTIPS, tools="pan,wheel_zoom,reset", width=1000, height=600)
+        p.vbar(x='x', top='y', width=0.9, source=source, color="cornflowerblue")
         p.toolbar.active_scroll = p.select_one(WheelZoomTool)
 
         # p.xgrid.grid_line_color = None
