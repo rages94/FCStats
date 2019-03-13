@@ -216,7 +216,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
 
         TOOLTIPS = [
             ('K/D', "@kills/@deaths"),
-            ('Skill', '@y'),
+            ('Skill', '@y{0.0}'),
             ('Map', '@map'),
             ('xVSx', '@size')
         ]
@@ -264,7 +264,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         ))
 
         TOOLTIPS = [
-            ('Skill', '@y'),
+            ('Skill', '@y{0.0}'),
             ('Map', '@x'),
             ('Number of fights', '@number_of_fights'),
             ('Average skill', '@avg_skill{0.000}'),
