@@ -148,32 +148,37 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             if not line:
                 continue
             ln = line.split()
+            x = ln.index("CS")
             fight = ln[0]
-            date = " ".join(ln[1:4])
-            time = ln[4]
-            type_game = " ".join(ln[5:8])
-            xvsx = "".join(ln[9:12])
-            mp = ln[12]
+            # TODO: correct date/time someday
+            if x == 5:
+                date = " ".join(ln[1:4])
+            else:
+                date = ln[1]
+            time = ln[x-1] if not ln.count("назад") else ''
+            type_game = " ".join(ln[x:x+3])
+            xvsx = "".join(ln[x+4:x+7])
+            mp = ln[x+7]
             side, result, k, d, sep = "", "", "", "", ""
             points = 0.0
             exp = 0
-            side = "T" if ln[13] == "A" else "CT"
-            if ln[14] == "Не":
-                result = " ".join(ln[14:16])
-            elif ln[14] == "Ошибка":
-                result = ln[14]
+            side = "T" if ln[x+8] == "A" else "CT"
+            if ln[x+9] == "Не":
+                result = " ".join(ln[x+9:x+11])
+            elif ln[x+9] == "Ошибка":
+                result = ln[x+9]
             else:
-                result = ln[14]
-                k, d = map(int, ln[15].split('/'))
-                points = float(ln[16])
+                result = ln[x+9]
+                k, d = map(int, ln[x+10].split('/'))
+                points = float(ln[x+11])
                 try:
-                    if ln[17][0] == "(":
-                        sep = ln[17]
-                        exp = ln[18]
+                    if ln[x+12][0] == "(":
+                        sep = ln[x+12]
+                        exp = ln[x+13]
                     else:
                         sep = ""
                         try:
-                            exp = ln[17]
+                            exp = ln[x+12]
                         except IndexError:
                             pass
                 except IndexError:
