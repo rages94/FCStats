@@ -112,10 +112,13 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         tab_maps = self.build_hist(df_wins_defeats, df_wins_defeats.Карта, 'Map')
         tab_sizes = self.build_hist(df_wins_defeats, df_wins_defeats.Размер, 'Size')
         tab_sides = self.build_hist(df_wins_defeats, df_wins_defeats.Сторона, 'Side')
-        # TODO: ascending date
-        tab_dates = self.build_hist(df_wins_defeats, df_wins_defeats.Дата, 'Date', False)
-        # TODO: years, hours
-        tabs = Tabs(tabs=[tab_skill_fights, tab_maps, tab_sizes, tab_sides, tab_dates])
+        series_date = [str(date).split()[0] for date in df_wins_defeats.Дата.sort_values()]
+        tab_dates = self.build_hist(df_wins_defeats, series_date, 'Date', False)
+        tab_years = self.build_hist(df_wins_defeats, df_wins_defeats.Год, 'Year')
+        tab_months = self.build_hist(df_wins_defeats, df_wins_defeats.Месяц, 'Month')
+        tab_hours = self.build_hist(df_wins_defeats, df_wins_defeats.Час, 'Hour')
+        tabs = Tabs(tabs=[tab_skill_fights, tab_maps, tab_sizes, tab_sides, tab_dates,
+                          tab_years, tab_months, tab_hours])
         show(tabs)
 
         if not self.save_stats:
