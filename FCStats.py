@@ -9,7 +9,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
 from pandas import DataFrame
-from bokeh.models import ColumnDataSource, OpenURL, TapTool, WheelZoomTool
+from bokeh.models import ColumnDataSource, OpenURL, TapTool, WheelZoomTool, LinearColorMapper
 from bokeh.plotting import figure, output_file, show
 from bokeh.models.widgets import Panel, Tabs
 # from bokeh.io import curdoc
@@ -25,8 +25,8 @@ FIGHT = 'https://fastcup.net/fight.html?id=%s'
 
 
 # form.ui -> form.py: pyuic5 form.ui -o form.py
-# build one file: pyinstaller -F -w --clean main.py
-# build one dir: pyinstaller -D -w  --clean --add-data "chromedriver.exe";"." main.py
+# build one file: pyinstaller -F -w --clean FCStats.py
+# build one dir: pyinstaller -D -w  --clean --add-data "chromedriver.exe";"." FCStats.py
 class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
     def __init__(self):
         # access to variables and methods form.py
@@ -106,7 +106,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         df_wins_defeats = df[(df.Результат == "Победа") | (df.Результат == "Поражение")]
 
         player_name = self.replace_unsupported_chars(player_name)
-        output_file(f"Fights_{player_name}.html", title='FCstats')
+        output_file(f"Fights_{player_name}.html", title='FCStats')
 
         tab_skill_fights = self.build_graph_skill_fights(df_wins_defeats)
         tab_maps = self.build_hist(df_wins_defeats, df_wins_defeats.Карта, 'Map')
@@ -290,6 +290,8 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             defeats=defeats_count
         ))
 
+        color_mapper = LinearColorMapper(palette='Blues8', low=max(number_of_fights), high=min(number_of_fights))
+
         TOOLTIPS = [
             ('Skill', '@y{0.0}'),
             (name, '@x'),
@@ -302,7 +304,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
 
         # sizing_mode='stretch_both' don't work in tabs :(
         p = figure(x_range=x, title="", tooltips=TOOLTIPS, tools="pan,wheel_zoom,reset", width=1000, height=600)
-        p.vbar(x='x', top='y', width=0.9, source=source, color="cornflowerblue")
+        p.vbar(x='x', top='y', width=0.9, source=source, color={'field': 'number_of_fights', 'transform': color_mapper})
         p.toolbar.active_scroll = p.select_one(WheelZoomTool)
 
         min_skill_sum = min(skill_sum)
