@@ -137,9 +137,12 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         return data
 
     def create_dataframe(self, dt: [list]) -> DataFrame:
-        labels = ["Игра", "Дата", "Время", "Канал", "Размер", "Карта",
+        labels = ["Игра", "Дата", "Время", "Год", "Месяц", "День", "Час", "Минуты", "Канал", "Размер", "Карта",
                   "Сторона", "Результат", "Фраги", "Смерти", "Скилл", "Деление", "Опыт"]
-        return DataFrame.from_records(dt, columns=labels).iloc[::-1]
+        df = DataFrame.from_records(dt, columns=labels).iloc[::-1]
+        df['Дата'] = df.Дата.astype('datetime64[ns]')
+        df = df.sort_values('Дата')
+        return df
 
     def init_web_driver(self):
         self.driver = webdriver.Chrome(executable_path=PATH_TO_WEBDRIVER,
@@ -156,8 +159,9 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             ln = line.split()
             x = ln.index("CS")
             fight = ln[0]
-            # TODO: correct date/time someday
             date, time = self.__get_date_time(ln[1:x])
+            day, month, year = date.split('.')
+            hour, minutes = time.split(':')
             type_game = " ".join(ln[x:x+3])
             xvsx = "".join(ln[x+4:x+7])
             mp = ln[x+7]
@@ -185,7 +189,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
                             pass
                 except IndexError:
                     pass
-            dt.append([fight, date, time, type_game,
+            dt.append([fight, date, time, year, month, day, hour, minutes, type_game,
                       xvsx, mp, side, result, k, d, points, sep, exp])
         return dt
 
