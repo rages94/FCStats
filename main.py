@@ -1,6 +1,7 @@
 import sys
 import time
 from os import path, remove
+from datetime import datetime, timedelta
 
 from PyQt5 import QtWidgets
 from selenium import webdriver
@@ -11,7 +12,7 @@ from pandas import DataFrame
 from bokeh.models import ColumnDataSource, OpenURL, TapTool, WheelZoomTool
 from bokeh.plotting import figure, output_file, show
 from bokeh.models.widgets import Panel, Tabs
-from bokeh.io import curdoc
+# from bokeh.io import curdoc
 
 import form
 
@@ -156,11 +157,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             x = ln.index("CS")
             fight = ln[0]
             # TODO: correct date/time someday
-            if x == 5:
-                date = " ".join(ln[1:4])
-            else:
-                date = ln[1]
-            time = ln[x-1] if not ln.count("назад") else ''
+            date, time = self.__get_date_time(ln[1:x])
             type_game = " ".join(ln[x:x+3])
             xvsx = "".join(ln[x+4:x+7])
             mp = ln[x+7]
@@ -191,6 +188,28 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             dt.append([fight, date, time, type_game,
                       xvsx, mp, side, result, k, d, points, sep, exp])
         return dt
+
+    def __get_date_time(self, lst_dt: [str]) -> (str, str):
+        month_to_num = dict(января='01', февраля='02', марта='03', апреля='04', мая='05', июня='06',
+                            июля='07', августа='08', сентября='09', октября='10', ноября='11', декабря='12')
+        days_to_int = dict(Сегодня=0, Вчера=1, Позавчера=2)
+
+        now = datetime.today()
+        if len(lst_dt) == 4:
+            if lst_dt[2] == 'назад':
+                date = now.strftime("%d.%m.%Y")
+                time = now.strftime("%H:%M")
+                if 'мин' in lst_dt[1]:
+                    time = (now - timedelta(minutes=int(lst_dt[0]))).strftime("%H:%M")
+            else:
+                time = lst_dt[3]
+                lst_dt[0] = lst_dt[0].zfill(2)
+                lst_dt[1] = month_to_num[lst_dt[1]]
+                date = '.'.join(lst_dt[:3])
+        else:
+            time = lst_dt[1]
+            date = (now - timedelta(days=days_to_int[lst_dt[0]])).strftime("%d.%m.%Y")
+        return date, time
 
     def search_player(self, player_name: str):
         element = self.driver.find_element(By.XPATH, "//input[@placeholder='Ник или STEAM_0:X:XXXXXX']")
