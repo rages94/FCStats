@@ -290,7 +290,8 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             defeats=defeats_count
         ))
 
-        color_mapper = LinearColorMapper(palette='Blues8', low=max(number_of_fights), high=min(number_of_fights))
+        color_mapper = LinearColorMapper(palette=['#084594', '#2171b5', '#4292c6', '#6baed6', '#9ecae1', '#c6dbef', '#deebf7'],
+                                         low=max(number_of_fights), high=min(number_of_fights))
 
         TOOLTIPS = [
             ('Skill', '@y{0.0}'),
