@@ -32,5 +32,4 @@ QCheckBox {
 QCheckBox::indicator {
     background: none;
 	color: #00affa;
-	border: 1px solid #00affa
 }

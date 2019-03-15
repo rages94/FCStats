@@ -39,7 +39,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
 
         # init design
         self.setupUi(self)
-        self.setFont(QtGui.QFont("Segoe UI", 9))
+        self.setFont(QtGui.QFont("Segoe UI", 8))
         self.setStyleSheet(read_file('fcstats.qss'))
 
         # start function by button
