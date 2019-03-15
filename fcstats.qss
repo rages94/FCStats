@@ -1,0 +1,39 @@
+QWidget {
+	background-color: #ffffff;
+}
+QTabWidget::pane {
+	border-top: 2px solid qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #90a0e0, stop:1.0 #303070);
+}
+QTabWidget::tab-bar {
+	left: 30px;
+}
+QPushButton {
+	color:white;
+	background-color: #00affa;
+	border: none;
+	border-radius: 3px;
+	min-width: 50px;
+	min-height: 25px;
+}
+QPushButton:flat {
+	border: none;
+	background: none;
+}
+QPushButton:pressed {
+	background-color: #e0e3ff;
+}
+QLineEdit {
+	border: 1px solid #00affa;
+	background-color: #ffffff;
+	border-radius: 3px;
+	min-height: 22px;
+
+}
+QCheckBox {
+	color: #2b3335;
+}
+QCheckBox::indicator {
+    background: none;
+	color: #00affa;
+	border: 1px solid #00affa
+}

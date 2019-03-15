@@ -3,7 +3,7 @@ import time
 from os import path, remove
 from datetime import datetime, timedelta
 
-from PyQt5 import QtWidgets
+from PyQt5 import QtWidgets, QtGui
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
@@ -16,6 +16,7 @@ from bokeh.models.widgets import Panel, Tabs
 
 import form
 
+# TODO: other browsers
 PATH_TO_WEBDRIVER = 'chromedriver.exe'
 IMPLICITLY_WAIT = 10
 # because fastcup raise "HTTP 429 Too Many Requests" :\
@@ -23,6 +24,10 @@ SLEEP_ON_PAGE = 0.4
 PLAYERS = "https://fastcup.net/players.html"
 FIGHT = 'https://fastcup.net/fight.html?id=%s'
 
+
+def read_file(filename: str) -> str:
+    with open(filename, 'r', encoding='utf-8') as f:
+        return f.read()
 
 # form.ui -> form.py: pyuic5 form.ui -o form.py
 # build one file: pyinstaller -F -w --clean FCStats.py
@@ -34,6 +39,8 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
 
         # init design
         self.setupUi(self)
+        self.setFont(QtGui.QFont("Segoe UI", 9))
+        self.setStyleSheet(read_file('fcstats.qss'))
 
         # start function by button
         self.button_create_stats.clicked.connect(self.main_process)
@@ -54,7 +61,6 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
     def main_process(self):
         # init messagebox
         msg = QtWidgets.QMessageBox
-        msg.setStyleSheet(self, "QLabel{min-width: 200px;}")
 
         save_in_file = self.checkbox_save_in_file.isChecked()
         self.save_stats = self.checkbox_save_stats.isChecked()
