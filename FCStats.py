@@ -297,8 +297,9 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             defeats=defeats_count
         ))
 
-        color_mapper = LinearColorMapper(palette=['#084594', '#2171b5', '#4292c6', '#6baed6', '#9ecae1', '#c6dbef', '#deebf7'],
-                                         low=max(number_of_fights), high=min(number_of_fights))
+        colors = ['#deebf7', '#c6dbef', '#9ecae1', '#6baed6', '#4292c6', '#2171b5', '#084594']
+        color_mapper = LinearColorMapper(palette=colors,
+                                         low=min(number_of_fights), high=max(number_of_fights))
 
         TOOLTIPS = [
             ('Skill', '@y{0.0}'),
@@ -311,12 +312,18 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         ]
 
         # sizing_mode='stretch_both' don't work in tabs :(
-        p = figure(x_range=x, title="", tooltips=TOOLTIPS, tools="pan,wheel_zoom,reset", width=1000, height=600)
+        p = figure(x_range=x, title="", tooltips=TOOLTIPS, tools="pan,wheel_zoom,reset", width=1000, height=600,
+                   y_axis_label='Skill')
         p.vbar(x='x', top='y', width=0.9, source=source, color={'field': 'number_of_fights', 'transform': color_mapper})
         p.toolbar.active_scroll = p.select_one(WheelZoomTool)
 
         min_skill_sum = min(skill_sum)
         p.y_range.start = min_skill_sum if min_skill_sum < 0 else 0
+        color_bar = ColorBar(color_mapper=color_mapper, major_label_text_font_size="8pt",
+                             ticker=BasicTicker(desired_num_ticks=len(colors)),
+                             formatter=PrintfTickFormatter(format='          %d fights'),
+                             label_standoff=6, border_line_color=None, location=(0, 0))
+        p.add_layout(color_bar, 'right')
         if not visible_xaxis:
             p.xaxis.major_label_text_font_size = '0pt'
         return Panel(child=p, title=f'Skill-{name}s')
