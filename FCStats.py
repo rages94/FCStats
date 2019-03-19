@@ -124,6 +124,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         tab_months = self.build_hist(df_wins_defeats, df_wins_defeats.Месяц, 'Month')
         tab_hours = self.build_hist(df_wins_defeats, df_wins_defeats.Час, 'Hour', visible_grid=False)
         tab_hm = self.heat_map(df_wins_defeats, ['Год', 'Месяц'])
+        
         tabs = Tabs(tabs=[tab_skill_fights, tab_maps, tab_sizes, tab_sides, tab_dates,
                           tab_years, tab_months, tab_hours, tab_hm])
         show(tabs)
@@ -333,9 +334,8 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
 
         if not visible_grid:
             p.grid.grid_line_color = None
-            # p.axis.axis_line_color = None
             p.axis.major_tick_line_color = None
-            # TODO: visible x_line false
+
         return Panel(child=p, title=f'Skill-{name}s')
 
     def heat_map(self, df: DataFrame, group_by_type) -> Panel:
