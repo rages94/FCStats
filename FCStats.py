@@ -170,7 +170,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             x = ln.index("CS")
             fight = ln[0]
             date, time = self.__get_date_time(ln[1:x])
-            day, month, year = date.split('.')
+            year, month, day = date.split('-')
             hour, minutes = time.split(':')
             type_game = " ".join(ln[x:x+3])
             xvsx = "".join(ln[x+4:x+7])
@@ -211,7 +211,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         now = datetime.today()
         if len(lst_dt) == 4:
             if lst_dt[2] == 'назад':
-                date = now.strftime("%d.%m.%Y")
+                date = now.strftime("%Y-%m-%d")
                 time = now.strftime("%H:%M")
                 if 'мин' in lst_dt[1]:
                     time = (now - timedelta(minutes=int(lst_dt[0]))).strftime("%H:%M")
@@ -219,10 +219,10 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
                 time = lst_dt[3]
                 lst_dt[0] = lst_dt[0].zfill(2)
                 lst_dt[1] = month_to_num[lst_dt[1]]
-                date = '.'.join(lst_dt[:3])
+                date = '-'.join(lst_dt[2::-1])
         else:
             time = lst_dt[1]
-            date = (now - timedelta(days=days_to_int[lst_dt[0]])).strftime("%d.%m.%Y")
+            date = (now - timedelta(days=days_to_int[lst_dt[0]])).strftime("%Y-%m-%d")
         return date, time
 
     def search_player(self, player_name: str):
