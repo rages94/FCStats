@@ -261,11 +261,11 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
 
         # TODO: fix fights in tooltips
         # sizing_mode='stretch_both' don't work in tabs :(
-        p = figure(title="Щелкай на битвы!", x_axis_label='Номер битвы', y_axis_label='Скилл',
+        p = figure(title="Click to fights!", x_axis_label='Number of fight', y_axis_label='Skill',
                    tools="pan,tap,wheel_zoom,reset", active_drag="pan", tooltips=TOOLTIPS, width=1000, height=600)
 
         p.line('x', 'y', source=source, line_width=2, color="cornflowerblue")
-        p.circle('x', 'y', size=8, source=source, legend="Битвы")
+        p.circle('x', 'y', size=8, source=source, legend="Fights")
         p.toolbar.active_scroll = p.select_one(WheelZoomTool)
 
         url = 'https://fastcup.net/fight.html?id=@fights'
