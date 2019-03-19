@@ -31,7 +31,7 @@ def read_file(filename: str) -> str:
 
 # form.ui -> form.py: pyuic5 form.ui -o form.py
 # build one file: pyinstaller -F -w --clean FCStats.py
-# build one dir: pyinstaller -D -w  --clean --add-data "chromedriver.exe";"." FCStats.py
+# build one dir: pyinstaller -D -w  --clean --add-data "chromedriver.exe";".";"fcstats.qss";"." FCStats.py
 class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
     def __init__(self):
         # access to variables and methods form.py
@@ -366,7 +366,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
 
         colors = ['#deebf7', '#c6dbef', '#9ecae1', '#6baed6', '#4292c6', '#2171b5', '#084594']
         color_mapper = LinearColorMapper(palette=colors,
-                                         low=min(skill_sum), high=max(skill_sum))
+                                         low=min(number_of_fights), high=max(number_of_fights))
 
         TOOLTIPS = [
             ('Skill', '@skill_sum'),
@@ -380,13 +380,15 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         ]
 
         p = figure(title="",
-                   x_range=sorted(set(df.Месяц)), y_range=sorted(set(df.Год)),
+                   x_range=['01', '02', '03', '04', '05', '06',
+                            '07', '08', '09', '10', '11', '12'],
+                   y_range=sorted(set(df.Год)),
                    x_axis_location="above", plot_width=1000, plot_height=600,
-                   tools="pan,box_zoom,reset,wheel_zoom", toolbar_location='below', tooltips=TOOLTIPS)
+                   tools="pan,box_zoom,reset,wheel_zoom", tooltips=TOOLTIPS)
 
         p.rect(x="x", y="y", width=1, height=1,
                source=source,
-               fill_color={'field': 'skill_sum', 'transform': color_mapper},
+               fill_color={'field': 'number_of_fights', 'transform': color_mapper},
                line_color='#deebf7')
 
         p.grid.grid_line_color = None
@@ -398,7 +400,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
 
         color_bar = ColorBar(color_mapper=color_mapper, major_label_text_font_size="8pt",
                              ticker=BasicTicker(desired_num_ticks=len(colors)),
-                             formatter=PrintfTickFormatter(format='          %d skill'),
+                             formatter=PrintfTickFormatter(format='          %d fights'),
                              label_standoff=6, border_line_color=None, location=(0, 0))
         p.add_layout(color_bar, 'right')
 
