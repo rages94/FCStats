@@ -3,3 +3,4 @@ Fights_*.html
 build/*
 dist/*
 __pycache__/*
+stats/*

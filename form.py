@@ -57,7 +57,7 @@ class Ui_form_fcstats(object):
 
     def retranslateUi(self, form_fcstats):
         _translate = QtCore.QCoreApplication.translate
-        form_fcstats.setWindowTitle(_translate("form_fcstats", "FCstats"))
+        form_fcstats.setWindowTitle(_translate("form_fcstats", "FCStats"))
         self.button_create_stats.setText(_translate("form_fcstats", "Создать"))
         self.line_edit.setPlaceholderText(_translate("form_fcstats", "Ник или STEAM_0:X:XXXXXX"))
         self.checkbox_save_in_file.setText(_translate("form_fcstats", "Сохранить данные"))
