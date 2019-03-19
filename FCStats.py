@@ -115,14 +115,14 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         output_file(f"Fights_{player_name}.html", title='FCStats')
 
         tab_skill_fights = self.build_graph_skill_fights(df_wins_defeats)
-        tab_maps = self.build_hist(df_wins_defeats, df_wins_defeats.Карта, 'Map')
+        tab_maps = self.build_hist(df_wins_defeats, df_wins_defeats.Карта, 'Map', label_orientation=True)
         tab_sizes = self.build_hist(df_wins_defeats, df_wins_defeats.Размер, 'Size')
         tab_sides = self.build_hist(df_wins_defeats, df_wins_defeats.Сторона, 'Side')
         series_date = [str(date).split()[0] for date in df_wins_defeats.Дата.sort_values()]
-        tab_dates = self.build_hist(df_wins_defeats, series_date, 'Date', False)
+        tab_dates = self.build_hist(df_wins_defeats, series_date, 'Date', visible_xaxis=False, visible_grid=False)
         tab_years = self.build_hist(df_wins_defeats, df_wins_defeats.Год, 'Year')
         tab_months = self.build_hist(df_wins_defeats, df_wins_defeats.Месяц, 'Month')
-        tab_hours = self.build_hist(df_wins_defeats, df_wins_defeats.Час, 'Hour')
+        tab_hours = self.build_hist(df_wins_defeats, df_wins_defeats.Час, 'Hour', visible_grid=False)
         tab_hm = self.heat_map(df_wins_defeats, ['Год', 'Месяц'])
         tabs = Tabs(tabs=[tab_skill_fights, tab_maps, tab_sizes, tab_sides, tab_dates,
                           tab_years, tab_months, tab_hours, tab_hm])
@@ -273,7 +273,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         taptool.callback = OpenURL(url=url)
         return Panel(child=p, title='Skill-Fights')
 
-    def build_hist(self, df: DataFrame, group_by_type, name: str, visible_xaxis=True) -> Panel:
+    def build_hist(self, df: DataFrame, group_by_type, name: str, visible_xaxis=True, visible_grid=True, label_orientation=False) -> Panel:
         # prepare data
         df_group = df.Скилл.groupby(group_by_type)
         wins_defeats_count = df.Результат.groupby(group_by_type).value_counts()
@@ -319,13 +319,23 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
 
         min_skill_sum = min(skill_sum)
         p.y_range.start = min_skill_sum if min_skill_sum < 0 else 0
+        if label_orientation:
+            p.xaxis.major_label_orientation = 3.14 / 3
+
         color_bar = ColorBar(color_mapper=color_mapper, major_label_text_font_size="8pt",
                              ticker=BasicTicker(desired_num_ticks=len(colors)),
                              formatter=PrintfTickFormatter(format='          %d fights'),
                              label_standoff=6, border_line_color=None, location=(0, 0))
         p.add_layout(color_bar, 'right')
+
         if not visible_xaxis:
             p.xaxis.major_label_text_font_size = '0pt'
+
+        if not visible_grid:
+            p.grid.grid_line_color = None
+            # p.axis.axis_line_color = None
+            p.axis.major_tick_line_color = None
+            # TODO: visible x_line false
         return Panel(child=p, title=f'Skill-{name}s')
 
     def heat_map(self, df: DataFrame, group_by_type) -> Panel:
