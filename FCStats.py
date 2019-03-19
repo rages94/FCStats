@@ -9,7 +9,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
 from pandas import DataFrame
-from bokeh.models import ColumnDataSource, OpenURL, TapTool, WheelZoomTool, LinearColorMapper
+from bokeh.models import ColumnDataSource, OpenURL, TapTool, WheelZoomTool, LinearColorMapper, BasicTicker, PrintfTickFormatter, ColorBar
 from bokeh.plotting import figure, output_file, show
 from bokeh.models.widgets import Panel, Tabs
 # from bokeh.io import curdoc
@@ -123,8 +123,9 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         tab_years = self.build_hist(df_wins_defeats, df_wins_defeats.Год, 'Year')
         tab_months = self.build_hist(df_wins_defeats, df_wins_defeats.Месяц, 'Month')
         tab_hours = self.build_hist(df_wins_defeats, df_wins_defeats.Час, 'Hour')
+        tab_hm = self.heat_map(df_wins_defeats, ['Год', 'Месяц'])
         tabs = Tabs(tabs=[tab_skill_fights, tab_maps, tab_sizes, tab_sides, tab_dates,
-                          tab_years, tab_months, tab_hours])
+                          tab_years, tab_months, tab_hours, tab_hm])
         show(tabs)
 
         if not self.save_stats:
@@ -319,6 +320,72 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         if not visible_xaxis:
             p.xaxis.major_label_text_font_size = '0pt'
         return Panel(child=p, title=f'Skill-{name}s')
+
+    def heat_map(self, df: DataFrame, group_by_type) -> Panel:
+        df_group = df.groupby(group_by_type)
+        wins_defeats_count = df.groupby(group_by_type).Результат.value_counts()
+
+        months = df_group.sum().reset_index().Месяц.values
+        years = df_group.sum().reset_index().Год.values
+        x = list(df_group.sum().index)
+        number_of_fights = df_group.count().Игра.values
+        skill_sum = df_group.Скилл.sum().values
+        kills_sum = df.groupby(group_by_type).Фраги.sum().values
+        deaths_sum = df.groupby(group_by_type).Смерти.sum().values
+        wins_count = [wins_defeats_count[i].get('Победа', 0) for i in x]
+        defeats_count = [wins_defeats_count[i].get('Поражение', 0) for i in x]
+
+        source = ColumnDataSource(data=dict(
+            x=months,
+            y=years,
+            number_of_fights=number_of_fights,
+            avg_skill=list(map(lambda x, y: x/y, skill_sum, number_of_fights)),
+            kills=kills_sum,
+            deaths=deaths_sum,
+            wins=wins_count,
+            defeats=defeats_count,
+            skill_sum=skill_sum
+        ))
+
+        colors = ['#deebf7', '#c6dbef', '#9ecae1', '#6baed6', '#4292c6', '#2171b5', '#084594']
+        color_mapper = LinearColorMapper(palette=colors,
+                                         low=min(skill_sum), high=max(skill_sum))
+
+        TOOLTIPS = [
+            ('Skill', '@skill_sum'),
+            ('Year', '@y'),
+            ('Month', '@x'),
+            ('Number of fights', '@number_of_fights'),
+            ('Average skill', '@avg_skill{0.000}'),
+            ('K/D', '@kills/@deaths'),
+            ('Wins', '@wins'),
+            ('Defeats', '@defeats')
+        ]
+
+        p = figure(title="",
+                   x_range=sorted(set(df.Месяц)), y_range=sorted(set(df.Год)),
+                   x_axis_location="above", plot_width=1000, plot_height=600,
+                   tools="pan,box_zoom,reset,wheel_zoom", toolbar_location='below', tooltips=TOOLTIPS)
+
+        p.rect(x="x", y="y", width=1, height=1,
+               source=source,
+               fill_color={'field': 'skill_sum', 'transform': color_mapper},
+               line_color='#deebf7')
+
+        p.grid.grid_line_color = None
+        p.axis.axis_line_color = None
+        p.axis.major_tick_line_color = None
+        p.axis.major_label_text_font_size = "8pt"
+        p.axis.major_label_standoff = 0
+        # p.xaxis.major_label_orientation = pi / 3
+
+        color_bar = ColorBar(color_mapper=color_mapper, major_label_text_font_size="8pt",
+                             ticker=BasicTicker(desired_num_ticks=len(colors)),
+                             formatter=PrintfTickFormatter(format='          %d skill'),
+                             label_standoff=6, border_line_color=None, location=(0, 0))
+        p.add_layout(color_bar, 'right')
+
+        return Panel(child=p, title='Years-Months')
 
     @staticmethod
     def replace_unsupported_chars(string: str) -> str:
