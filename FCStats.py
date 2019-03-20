@@ -98,13 +98,15 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
 
     def load_data(self):
         self.save_stats = self.checkbox_save_stats.isChecked()
-        directory = QtWidgets.QFileDialog.getOpenFileName(self, "Load file", filter="*.txt")
-        path_to_file = directory[0]
-        if path_to_file:
-            with open(path_to_file, 'r', encoding='utf-8') as f:
-                data = f.read()
-            file_name = path_to_file.split('/')[-1][:-4]
-            self.visualization(data, file_name)
+        directory = QtWidgets.QFileDialog.getOpenFileNames(self, "Load file", filter="*.txt")
+        path_to_files = directory[0]
+        if path_to_files:
+            data = []
+            for path_to_file in path_to_files:
+                with open(path_to_file, 'r', encoding='utf-8') as f:
+                    data.append(f.read())
+            file_name = path_to_files[0].split('/')[-1][:-4] if len(path_to_files) == 1 else 'Union'
+            self.visualization('\n'.join(data), file_name)
 
     def visualization(self, data, player_name):
         prepared_data = self.data_preparation(data)
@@ -124,7 +126,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         tab_months = self.build_hist(df_wins_defeats, df_wins_defeats.Месяц, 'Month')
         tab_hours = self.build_hist(df_wins_defeats, df_wins_defeats.Час, 'Hour', visible_grid=False)
         tab_hm = self.heat_map(df_wins_defeats, ['Год', 'Месяц'])
-        
+
         tabs = Tabs(tabs=[tab_skill_fights, tab_maps, tab_sizes, tab_sides, tab_dates,
                           tab_years, tab_months, tab_hours, tab_hm])
         show(tabs)
