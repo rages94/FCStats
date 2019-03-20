@@ -9,14 +9,14 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
 from pandas import DataFrame
-from bokeh.models import ColumnDataSource, OpenURL, TapTool, WheelZoomTool, LinearColorMapper, BasicTicker, PrintfTickFormatter, ColorBar
+from bokeh.models import ColumnDataSource, OpenURL, TapTool, WheelZoomTool, LinearColorMapper, BasicTicker, PrintfTickFormatter, ColorBar, HoverTool
 from bokeh.plotting import figure, output_file, show
 from bokeh.models.widgets import Panel, Tabs
-# from bokeh.io import curdoc
 
 import form
 
 # TODO: other browsers
+# TODO: multiacc
 PATH_TO_WEBDRIVER = 'chromedriver.exe'
 IMPLICITLY_WAIT = 10
 # because fastcup raise "HTTP 429 Too Many Requests" :\
@@ -31,7 +31,7 @@ def read_file(filename: str) -> str:
 
 # form.ui -> form.py: pyuic5 form.ui -o form.py
 # build one file: pyinstaller -F -w --clean FCStats.py
-# build one dir: pyinstaller -D -w  --clean --add-data "chromedriver.exe";".";"fcstats.qss";"." FCStats.py
+# build one dir: pyinstaller -D -w  --clean --add-data "chromedriver.exe";"." --add-data "fcstats.qss";"." FCStats.py
 class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
     def __init__(self):
         # access to variables and methods form.py
@@ -261,15 +261,15 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             ('Map', '@map'),
             ('xVSx', '@size')
         ]
+        hover_tools = HoverTool(tooltips=TOOLTIPS, line_policy='nearest', point_policy='snap_to_data')
 
-        # TODO: fix fights in tooltips
         # sizing_mode='stretch_both' don't work in tabs :(
         p = figure(title="Click to fights!", x_axis_label='Number of fight', y_axis_label='Skill',
-                   tools="pan,tap,wheel_zoom,reset", active_drag="pan", tooltips=TOOLTIPS, width=1000, height=600)
+                   tools="pan,tap,wheel_zoom,reset", active_drag="pan", width=1000, height=600)
 
-        p.line('x', 'y', source=source, line_width=2, color="cornflowerblue")
-        p.circle('x', 'y', size=8, source=source, legend="Fights")
+        p.circle('x', 'y', size=8, nonselection_fill_alpha=0.7, fill_alpha=0.7, source=source, legend="Fights")
         p.toolbar.active_scroll = p.select_one(WheelZoomTool)
+        p.tools.append(hover_tools)
 
         url = 'https://fastcup.net/fight.html?id=@fights'
         taptool = p.select(type=TapTool)
@@ -306,9 +306,9 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
 
         TOOLTIPS = [
             ('Skill', '@y{0.0}'),
-            (name, '@x'),
-            ('Number of fights', '@number_of_fights'),
             ('Average skill', '@avg_skill{0.000}'),
+            ('Number of fights', '@number_of_fights'),
+            (name, '@x'),
             ('K/D', '@kills/@deaths'),
             ('Wins', '@wins'),
             ('Defeats', '@defeats')
@@ -372,10 +372,10 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
 
         TOOLTIPS = [
             ('Skill', '@skill_sum'),
+            ('Average skill', '@avg_skill{0.000}'),
+            ('Number of fights', '@number_of_fights'),
             ('Year', '@y'),
             ('Month', '@x'),
-            ('Number of fights', '@number_of_fights'),
-            ('Average skill', '@avg_skill{0.000}'),
             ('K/D', '@kills/@deaths'),
             ('Wins', '@wins'),
             ('Defeats', '@defeats')
