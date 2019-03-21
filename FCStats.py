@@ -9,7 +9,8 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
 from pandas import DataFrame
-from bokeh.models import ColumnDataSource, OpenURL, TapTool, WheelZoomTool, LinearColorMapper, BasicTicker, PrintfTickFormatter, ColorBar, HoverTool
+from bokeh.models import ColumnDataSource, OpenURL, TapTool, WheelZoomTool, LinearColorMapper, \
+    BasicTicker, PrintfTickFormatter, ColorBar, HoverTool, FactorRange
 from bokeh.plotting import figure, output_file, show
 from bokeh.models.widgets import Panel, Tabs, DataTable, TableColumn, NumberFormatter
 from bokeh.transform import dodge
@@ -127,10 +128,11 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         tab_years = self.build_hist(df_wins_defeats, 'Год', 'Year')
         tab_months = self.build_hist(df_wins_defeats, 'Месяц', 'Month')
         tab_hours = self.build_hist(df_wins_defeats, 'Час', 'Hour', visible_grid=False)
+        tab_maps_sides = self.build_categorical_hist(df_wins_defeats, ['Карта', 'Сторона'], 'Map-Side', label_orientation=True)
         tab_hm = self.heat_map(df_wins_defeats, ['Год', 'Месяц'])
 
         tabs = Tabs(tabs=[tab_skill_fights, tab_maps, tab_sizes, tab_sides, tab_dates,
-                          tab_years, tab_months, tab_hours, tab_hm, tab_table])
+                          tab_years, tab_months, tab_hours, tab_maps_sides, tab_hm, tab_table])
         show(tabs)
 
         if not self.save_stats:
@@ -342,6 +344,75 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
 
         return Panel(child=p, title=f'Skill-{name}s')
 
+    def build_categorical_hist(self, df: DataFrame, group_by_type, name: str, visible_xaxis=True,
+                              visible_grid=True, label_orientation=False) -> Panel:
+        # prepare data
+        df_group = df.groupby(group_by_type)
+        wins_defeats_count = df.groupby(group_by_type).Результат.value_counts()
+        # sides_count = df.groupby(group_by_type).Сторона.value_counts()
+
+        x = list(df_group.sum().index)
+        number_of_fights = df_group.count().reset_index().Скилл.values
+        skill_sum = df_group.sum().reset_index().Скилл.values
+        kills_sum = df_group.Фраги.sum().reset_index().Фраги.values
+        deaths_sum = df_group.Смерти.sum().reset_index().Смерти.values
+        wins_count = [wins_defeats_count[i].get('Победа', 0) for i in x]
+        defeats_count = [wins_defeats_count[i].get('Поражение', 0) for i in x]
+
+        res_indx_count = df_group.count().reset_index()
+        x = [(mp, sd) for mp, sd in zip(res_indx_count.Карта, res_indx_count.Сторона)]
+
+        source = ColumnDataSource(data=dict(
+            x=x,
+            y=skill_sum,
+            avg_skill=list(map(lambda x, y: x/y, skill_sum, number_of_fights)),
+            number_of_fights=number_of_fights,
+            kills=kills_sum,
+            deaths=deaths_sum,
+            wins=wins_count,
+            defeats=defeats_count
+        ))
+
+        colors = ['#deebf7', '#c6dbef', '#9ecae1', '#6baed6', '#4292c6', '#2171b5', '#084594']
+        color_mapper = LinearColorMapper(palette=colors,
+                                         low=min(number_of_fights), high=max(number_of_fights))
+
+        TOOLTIPS = [
+            ('Skill', '@y{0.0}'),
+            ('Average skill', '@avg_skill{0.000}'),
+            ('Number of fights', '@number_of_fights'),
+            (name, '@x'),
+            ('K/D', '@kills/@deaths'),
+            ('Wins', '@wins'),
+            ('Defeats', '@defeats')
+        ]
+
+        # sizing_mode='stretch_both' don't work in tabs :(
+        p = figure(x_range=FactorRange(*x), title="", tooltips=TOOLTIPS, tools="pan,wheel_zoom,reset", width=1000, height=600,
+                   y_axis_label='Skill')
+        p.vbar(x='x', top='y', width=0.9, source=source, color={'field': 'number_of_fights', 'transform': color_mapper})
+        p.toolbar.active_scroll = p.select_one(WheelZoomTool)
+
+        min_skill_sum = min(skill_sum)
+        p.y_range.start = min_skill_sum if min_skill_sum < 0 else 0
+        if label_orientation:
+            p.xaxis.group_label_orientation = 3.14 / 3
+
+        color_bar = ColorBar(color_mapper=color_mapper, major_label_text_font_size="8pt",
+                             ticker=BasicTicker(desired_num_ticks=len(colors)),
+                             formatter=PrintfTickFormatter(format='%d fights'),
+                             label_standoff=13, border_line_color=None, location=(0, 0))
+        p.add_layout(color_bar, 'right')
+
+        if not visible_xaxis:
+            p.xaxis.major_label_text_font_size = '0pt'
+
+        if not visible_grid:
+            p.grid.grid_line_color = None
+            p.axis.major_tick_line_color = None
+
+        return Panel(child=p, title=f'Skill-{name}s')
+
     def heat_map(self, df: DataFrame, group_by_type) -> Panel:
         df_group = df.groupby(group_by_type)
         wins_defeats_count = df.groupby(group_by_type).Результат.value_counts()
@@ -377,7 +448,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         colors_wins = ['#002d00', '#00ea00']
         color_mapper_wins = LinearColorMapper(palette=colors_wins,
                                               low=min(number_of_fights), high=max(number_of_fights))
-        colors_defeats = ['#380000', '#e30000']
+        colors_defeats = ['#380000', '#e30000', '#ff2435']
         color_mapper_defeats = LinearColorMapper(palette=colors_defeats,
                                                  low=min(number_of_fights), high=max(number_of_fights))
 
