@@ -12,6 +12,7 @@ from pandas import DataFrame
 from bokeh.models import ColumnDataSource, OpenURL, TapTool, WheelZoomTool, LinearColorMapper, BasicTicker, PrintfTickFormatter, ColorBar, HoverTool
 from bokeh.plotting import figure, output_file, show
 from bokeh.models.widgets import Panel, Tabs
+from bokeh.transform import dodge
 
 import form
 
@@ -327,8 +328,8 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
 
         color_bar = ColorBar(color_mapper=color_mapper, major_label_text_font_size="8pt",
                              ticker=BasicTicker(desired_num_ticks=len(colors)),
-                             formatter=PrintfTickFormatter(format='          %d fights'),
-                             label_standoff=6, border_line_color=None, location=(0, 0))
+                             formatter=PrintfTickFormatter(format='%d fights'),
+                             label_standoff=13, border_line_color=None, location=(0, 0))
         p.add_layout(color_bar, 'right')
 
         if not visible_xaxis:
@@ -371,7 +372,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
                                          low=min(number_of_fights), high=max(number_of_fights))
 
         TOOLTIPS = [
-            ('Skill', '@skill_sum'),
+            ('Skill', '@skill_sum{0.0}'),
             ('Average skill', '@avg_skill{0.000}'),
             ('Number of fights', '@number_of_fights'),
             ('Year', '@y'),
@@ -393,6 +394,11 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
                fill_color={'field': 'number_of_fights', 'transform': color_mapper},
                line_color='#deebf7')
 
+        # text_props = {"source": source, "text_font_size": '8pt', "x_offset": -0.8}
+        #
+        # p.text(x="x", y="y", text="wins", **text_props)
+        # p.text(x="x", y=dodge("y", -0.3, range=p.y_range), text="defeats", y_offset=-0.2, **text_props)
+
         p.grid.grid_line_color = None
         p.axis.axis_line_color = None
         p.axis.major_tick_line_color = None
@@ -402,8 +408,8 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
 
         color_bar = ColorBar(color_mapper=color_mapper, major_label_text_font_size="8pt",
                              ticker=BasicTicker(desired_num_ticks=len(colors)),
-                             formatter=PrintfTickFormatter(format='          %d fights'),
-                             label_standoff=6, border_line_color=None, location=(0, 0))
+                             formatter=PrintfTickFormatter(format='%d fights'),
+                             label_standoff=13, border_line_color=None, location=(0, 0))
         p.add_layout(color_bar, 'right')
 
         return Panel(child=p, title='Years-Months')
