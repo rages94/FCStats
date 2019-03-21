@@ -113,20 +113,20 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         prepared_data = self.data_preparation(data)
         df = self.create_dataframe(prepared_data)
         df_wins_defeats = df[(df.Результат == "Победа") | (df.Результат == "Поражение")]
+        series_date = [str(date).split()[0] for date in df_wins_defeats.Дата.sort_values()]
 
         player_name = self.replace_unsupported_chars(player_name)
         output_file(f"Fights_{player_name}.html", title='FCStats')
 
         tab_table = self.common_table(df)
         tab_skill_fights = self.build_graph_skill_fights(df_wins_defeats)
-        tab_maps = self.build_hist(df_wins_defeats, df_wins_defeats.Карта, 'Map', label_orientation=True)
-        tab_sizes = self.build_hist(df_wins_defeats, df_wins_defeats.Размер, 'Size')
-        tab_sides = self.build_hist(df_wins_defeats, df_wins_defeats.Сторона, 'Side')
-        series_date = [str(date).split()[0] for date in df_wins_defeats.Дата.sort_values()]
+        tab_maps = self.build_hist(df_wins_defeats, 'Карта', 'Map', label_orientation=True)
+        tab_sizes = self.build_hist(df_wins_defeats, 'Размер', 'Size')
+        tab_sides = self.build_hist(df_wins_defeats, 'Сторона', 'Side')
         tab_dates = self.build_hist(df_wins_defeats, series_date, 'Date', visible_xaxis=False, visible_grid=False)
-        tab_years = self.build_hist(df_wins_defeats, df_wins_defeats.Год, 'Year')
-        tab_months = self.build_hist(df_wins_defeats, df_wins_defeats.Месяц, 'Month')
-        tab_hours = self.build_hist(df_wins_defeats, df_wins_defeats.Час, 'Hour', visible_grid=False)
+        tab_years = self.build_hist(df_wins_defeats, 'Год', 'Year')
+        tab_months = self.build_hist(df_wins_defeats, 'Месяц', 'Month')
+        tab_hours = self.build_hist(df_wins_defeats, 'Час', 'Hour', visible_grid=False)
         tab_hm = self.heat_map(df_wins_defeats, ['Год', 'Месяц'])
 
         tabs = Tabs(tabs=[tab_skill_fights, tab_maps, tab_sizes, tab_sides, tab_dates,
@@ -280,14 +280,14 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
 
     def build_hist(self, df: DataFrame, group_by_type, name: str, visible_xaxis=True, visible_grid=True, label_orientation=False) -> Panel:
         # prepare data
-        df_group = df.Скилл.groupby(group_by_type)
-        wins_defeats_count = df.Результат.groupby(group_by_type).value_counts()
+        df_group = df.groupby(group_by_type).Скилл
+        wins_defeats_count = df.groupby(group_by_type).Результат.value_counts()
 
         x = list(df_group.sum().index)
         number_of_fights = df_group.count().values
         skill_sum = df_group.sum().values
-        kills_sum = df.Фраги.groupby(group_by_type).sum()
-        deaths_sum = df.Смерти.groupby(group_by_type).sum()
+        kills_sum = df.groupby(group_by_type).Фраги.sum()
+        deaths_sum = df.groupby(group_by_type).Смерти.sum()
         wins_count = [wins_defeats_count[i].get('Победа', 0) for i in x]
         defeats_count = [wins_defeats_count[i].get('Поражение', 0) for i in x]
 
