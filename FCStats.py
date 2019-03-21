@@ -11,7 +11,7 @@ from selenium.common.exceptions import NoSuchElementException
 from pandas import DataFrame
 from bokeh.models import ColumnDataSource, OpenURL, TapTool, WheelZoomTool, LinearColorMapper, BasicTicker, PrintfTickFormatter, ColorBar, HoverTool
 from bokeh.plotting import figure, output_file, show
-from bokeh.models.widgets import Panel, Tabs
+from bokeh.models.widgets import Panel, Tabs, DataTable, TableColumn, NumberFormatter
 from bokeh.transform import dodge
 
 import form
@@ -117,6 +117,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         player_name = self.replace_unsupported_chars(player_name)
         output_file(f"Fights_{player_name}.html", title='FCStats')
 
+        tab_table = self.common_table(df)
         tab_skill_fights = self.build_graph_skill_fights(df_wins_defeats)
         tab_maps = self.build_hist(df_wins_defeats, df_wins_defeats.Карта, 'Map', label_orientation=True)
         tab_sizes = self.build_hist(df_wins_defeats, df_wins_defeats.Размер, 'Size')
@@ -129,7 +130,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         tab_hm = self.heat_map(df_wins_defeats, ['Год', 'Месяц'])
 
         tabs = Tabs(tabs=[tab_skill_fights, tab_maps, tab_sizes, tab_sides, tab_dates,
-                          tab_years, tab_months, tab_hours, tab_hm])
+                          tab_years, tab_months, tab_hours, tab_hm, tab_table])
         show(tabs)
 
         if not self.save_stats:
@@ -413,6 +414,25 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         p.add_layout(color_bar, 'right')
 
         return Panel(child=p, title='Years-Months')
+
+    def common_table(self, df: DataFrame):
+        # https://github.com/bokeh/bokeh/issues/7120
+        ddf = df.Игра.groupby(df.Результат).count().to_frame()
+
+        source = ColumnDataSource(data=dict(
+            y=ddf.index.values,
+            fights_count=ddf.values,
+            skill_sum=df.Скилл.groupby(df.Результат).sum().values
+        ))
+        columns = [
+            TableColumn(field="y", title="Результат"),
+            TableColumn(field="fights_count", title="Количество"),
+            TableColumn(field="skill_sum", title="Суммарный скилл", formatter=NumberFormatter(format="0.0"))
+        ]
+
+        data_table = DataTable(source=source, columns=columns, width=800)
+
+        return Panel(child=data_table, title='Other statistics')
 
     @staticmethod
     def replace_unsupported_chars(string: str) -> str:
