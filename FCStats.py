@@ -350,7 +350,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         years = df_group.sum().reset_index().Год.values
         x = list(df_group.sum().index)
         number_of_fights = df_group.count().Игра.values
-        skill_sum = df_group.Скилл.sum().values
+        skill_sum = [round(i, 1) for i in df_group.Скилл.sum().values]
         kills_sum = df.groupby(group_by_type).Фраги.sum().values
         deaths_sum = df.groupby(group_by_type).Смерти.sum().values
         wins_count = [wins_defeats_count[i].get('Победа', 0) for i in x]
@@ -371,6 +371,15 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         colors = ['#deebf7', '#c6dbef', '#9ecae1', '#6baed6', '#4292c6', '#2171b5', '#084594']
         color_mapper = LinearColorMapper(palette=colors,
                                          low=min(number_of_fights), high=max(number_of_fights))
+        colors_skill = ['#000000', '#FFFFFF']
+        color_mapper_skill = LinearColorMapper(palette=colors_skill,
+                                               low=min(number_of_fights), high=max(number_of_fights))
+        colors_wins = ['#002d00', '#00ea00']
+        color_mapper_wins = LinearColorMapper(palette=colors_wins,
+                                              low=min(number_of_fights), high=max(number_of_fights))
+        colors_defeats = ['#380000', '#e30000']
+        color_mapper_defeats = LinearColorMapper(palette=colors_defeats,
+                                                 low=min(number_of_fights), high=max(number_of_fights))
 
         TOOLTIPS = [
             ('Skill', '@skill_sum{0.0}'),
@@ -382,23 +391,31 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             ('Wins', '@wins'),
             ('Defeats', '@defeats')
         ]
+        hover_tools = HoverTool(tooltips=TOOLTIPS, line_policy='nearest', point_policy='snap_to_data', names=['rect'])
 
         p = figure(title="",
                    x_range=['01', '02', '03', '04', '05', '06',
                             '07', '08', '09', '10', '11', '12'],
                    y_range=sorted(set(df.Год)),
                    x_axis_location="above", plot_width=1000, plot_height=600,
-                   tools="pan,box_zoom,reset,wheel_zoom", tooltips=TOOLTIPS)
+                   tools="pan,box_zoom,reset,wheel_zoom")
 
         p.rect(x="x", y="y", width=1, height=1,
                source=source,
                fill_color={'field': 'number_of_fights', 'transform': color_mapper},
-               line_color='#deebf7')
+               line_color='#deebf7',
+               name='rect')
+        p.tools.append(hover_tools)
 
-        # text_props = {"source": source, "text_font_size": '8pt', "x_offset": -0.8}
-        #
-        # p.text(x="x", y="y", text="wins", **text_props)
-        # p.text(x="x", y=dodge("y", -0.3, range=p.y_range), text="defeats", y_offset=-0.2, **text_props)
+        text_props = {"source": source, "text_font_size": '8pt', "x_offset": -0.8}
+
+        x = dodge("x", -0.4, range=p.x_range)
+        p.text(x=x, y=dodge("y", 0.2, range=p.y_range), text="skill_sum",
+               text_color={'field': 'number_of_fights', 'transform': color_mapper_skill}, **text_props)
+        p.text(x=x, y=dodge("y", -0.1, range=p.y_range), text="wins",
+               text_color={'field': 'number_of_fights', 'transform': color_mapper_wins}, **text_props)
+        p.text(x=x, y=dodge("y", -0.25, range=p.y_range), text="defeats",
+               text_color={'field': 'number_of_fights', 'transform': color_mapper_defeats}, **text_props)
 
         p.grid.grid_line_color = None
         p.axis.axis_line_color = None
