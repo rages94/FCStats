@@ -248,6 +248,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         y = df.Скилл
         x = range(1, len(y) + 1)
         fights = list(map(lambda x_: x_[1:], df.Игра))
+        difference_kd = [k-d for k, d in zip(df.Фраги, df.Смерти)]
 
         source = ColumnDataSource(data=dict(
             x=x,
@@ -256,8 +257,13 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             kills=df.Фраги,
             deaths=df.Смерти,
             map=df.Карта,
-            size=df.Размер
+            size=df.Размер,
+            difference_kd=difference_kd
         ))
+
+        colors = ['#E60C00', '#E67E00', '#FFCC0F', '#B5EB00', '#78EB00', '#2BEB00']
+        color_mapper = LinearColorMapper(palette=colors,
+                                         low=min(difference_kd), high=max(difference_kd))
 
         TOOLTIPS = [
             ('K/D', "@kills/@deaths"),
@@ -271,9 +277,17 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         p = figure(title="Click to fights!", x_axis_label='Number of fight', y_axis_label='Skill',
                    tools="pan,tap,wheel_zoom,reset", active_drag="pan", width=1000, height=600)
 
-        p.circle('x', 'y', size=8, nonselection_fill_alpha=0.7, fill_alpha=0.7, source=source, legend="Fights")
+        p.circle('x', 'y', size=8, nonselection_fill_alpha=0.7, fill_alpha=0.7, source=source,
+                 legend="Fights", color={'field': 'difference_kd', 'transform': color_mapper},
+                 nonselection_color={'field': 'difference_kd', 'transform': color_mapper})
         p.toolbar.active_scroll = p.select_one(WheelZoomTool)
         p.tools.append(hover_tools)
+
+        color_bar = ColorBar(color_mapper=color_mapper, major_label_text_font_size="8pt",
+                             ticker=BasicTicker(desired_num_ticks=len(colors)),
+                             formatter=PrintfTickFormatter(format='%d difference k/d'),
+                             label_standoff=21, border_line_color=None, location=(0, 0))
+        p.add_layout(color_bar, 'right')
 
         url = 'https://fastcup.net/fight.html?id=@fights'
         taptool = p.select(type=TapTool)
