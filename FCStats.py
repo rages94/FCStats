@@ -31,6 +31,7 @@ def read_file(filename: str) -> str:
     with open(filename, 'r', encoding='utf-8') as f:
         return f.read()
 
+
 # form.ui -> form.py: pyuic5 form.ui -o form.py
 # build one file: pyinstaller -F -w --clean FCStats.py
 # build one dir: pyinstaller -D -w  --clean --add-data "chromedriver.exe";"." --add-data "fcstats.qss";"." FCStats.py
@@ -59,6 +60,9 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             "javascriptEnabled": True
         }
         self.driver = None
+        screen_size = QtWidgets.QDesktopWidget().availableGeometry()
+        self.height = int(screen_size.height() * 0.85)
+        self.width = int(screen_size.width() * 0.95)
 
     def main_process(self):
         # init messagebox
@@ -275,7 +279,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
 
         # sizing_mode='stretch_both' don't work in tabs :(
         p = figure(title="Click to fights!", x_axis_label='Number of fight', y_axis_label='Skill',
-                   tools="pan,tap,wheel_zoom,reset", active_drag="pan", width=1000, height=600)
+                   tools="pan,tap,wheel_zoom,reset", active_drag="pan", width=self.width, height=self.height)
 
         p.circle('x', 'y', size=8, nonselection_fill_alpha=0.7, fill_alpha=0.7, source=source,
                  legend="Fights", color={'field': 'difference_kd', 'transform': color_mapper},
@@ -333,7 +337,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         ]
 
         # sizing_mode='stretch_both' don't work in tabs :(
-        p = figure(x_range=x, title="", tooltips=TOOLTIPS, tools="pan,wheel_zoom,reset", width=1000, height=600,
+        p = figure(x_range=x, title="", tooltips=TOOLTIPS, tools="pan,wheel_zoom,reset", width=self.width, height=self.height,
                    y_axis_label='Skill')
         p.vbar(x='x', top='y', width=0.9, source=source, color={'field': 'number_of_fights', 'transform': color_mapper})
         p.toolbar.active_scroll = p.select_one(WheelZoomTool)
@@ -402,7 +406,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         ]
 
         # sizing_mode='stretch_both' don't work in tabs :(
-        p = figure(x_range=FactorRange(*x), title="", tooltips=TOOLTIPS, tools="pan,wheel_zoom,reset", width=1000, height=600,
+        p = figure(x_range=FactorRange(*x), title="", tooltips=TOOLTIPS, tools="pan,wheel_zoom,reset", width=self.width, height=self.height,
                    y_axis_label='Skill')
         p.vbar(x='x', top='y', width=0.9, source=source, color={'field': 'number_of_fights', 'transform': color_mapper})
         p.toolbar.active_scroll = p.select_one(WheelZoomTool)
@@ -482,7 +486,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
                    x_range=['01', '02', '03', '04', '05', '06',
                             '07', '08', '09', '10', '11', '12'],
                    y_range=sorted(set(df.Год)),
-                   x_axis_location="above", plot_width=1000, plot_height=600,
+                   x_axis_location="above", plot_width=self.width, plot_height=self.height,
                    tools="pan,box_zoom,reset,wheel_zoom")
 
         p.rect(x="x", y="y", width=1, height=1,
