@@ -7,7 +7,7 @@ from PyQt5 import QtWidgets, QtGui
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
-from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import NoSuchElementException, NoSuchWindowException, SessionNotCreatedException, WebDriverException
 from pandas import DataFrame
 from bokeh.models import ColumnDataSource, OpenURL, TapTool, WheelZoomTool, LinearColorMapper, \
     BasicTicker, PrintfTickFormatter, ColorBar, HoverTool, FactorRange
@@ -80,13 +80,19 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         self.init_web_driver()
         # open the page
         self.driver.get(PLAYERS)
-        self.search_player(player_name)
         try:
+            self.search_player(player_name)
             player = self.driver.find_element(By.XPATH, "//div[@class='right_col_textbox']/div[@class='msg']/a[contains(text(), '%s')]" % player_name)
             player.click()
         except NoSuchElementException:
             self.driver.close()
             msg.about(self, "Warning!", "Player not found!")
+        except NoSuchWindowException:
+            return
+        except WebDriverException:
+                return
+        except AttributeError:
+            return
         else:
             try:
                 number_of_pages = int(self._get_element_list("//div[@id='mtabs-battles']")[0].split()[-1])
@@ -99,6 +105,12 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             except ValueError:
                 self.driver.close()
                 msg.about(self, "Warning!", "Have no data!")
+            except AttributeError:
+                return
+            except NoSuchWindowException:
+                return
+            except WebDriverException:
+                return
             else:
                 self.visualization(data, player_name)
 
