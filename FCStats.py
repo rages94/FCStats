@@ -17,18 +17,15 @@ from bokeh.transform import dodge
 
 import form
 
-# TODO: other browsers
-# TODO: multiacc
 # selenium settings
 CAPABILITIES = {'Chrome': {"browserName": "chrome", "version": "latest", "javascriptEnabled": True},
-                'FireFox': {"alwaysMatch": {"browserName": "firefox", "browserVersion": "latest"}}
-                }
+                'FireFox': {"alwaysMatch": {"browserName": "firefox", "browserVersion": "latest"}, "javascriptEnabled": True}}
 PATH_TO_WEBDRIVER = {'Chrome': 'chromedriver.exe',
-                     'FireFox': 'geckodriver.exe'
-                     }
+                     'FireFox': 'geckodriver.exe'}
 IMPLICITLY_WAIT = 10
 # because fastcup raise "HTTP 429 Too Many Requests" :\
-SLEEP_ON_PAGE = 0.4
+SLEEP_ON_PAGE = {'Chrome': 0.4,
+                 'FireFox': 0}
 PLAYERS = "https://fastcup.net/players.html"
 FIGHT = 'https://fastcup.net/fight.html?id=%s'
 
@@ -40,7 +37,7 @@ def read_file(filename: str) -> str:
 
 # form.ui -> form.py: pyuic5 form.ui -o form.py
 # build one file: pyinstaller -F -w --clean FCStats.py
-# build one dir: pyinstaller -D -w  --clean --add-data "chromedriver.exe";"." --add-data "fcstats.qss";"." FCStats.py
+# build one dir: pyinstaller -D -w  --clean --add-data "chromedriver.exe";"." --add-data "geckodriver.exe";"." --add-data "fcstats.qss";"." FCStats.py
 class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
     def __init__(self):
         # access to variables and methods form.py
@@ -169,7 +166,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             # click next page
             self.driver.find_element(By.XPATH, "//div[@id='mtabs-battles']/a[contains(text(), '%d')]" % i).click()
             # because fastcup raise "HTTP 429 Too Many Requests" :\
-            time.sleep(SLEEP_ON_PAGE)
+            time.sleep(SLEEP_ON_PAGE[self.browser])
         data.append(self._get_element_list("//div[@id='mtabs-battles']")[2:])
         return data
 
