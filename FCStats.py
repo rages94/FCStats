@@ -19,7 +19,13 @@ import form
 
 # TODO: other browsers
 # TODO: multiacc
-PATH_TO_WEBDRIVER = 'chromedriver.exe'
+# selenium settings
+CAPABILITIES = {'Chrome': {"browserName": "chrome", "version": "latest", "javascriptEnabled": True},
+                'FireFox': {"alwaysMatch": {"browserName": "firefox", "browserVersion": "latest"}}
+                }
+PATH_TO_WEBDRIVER = {'Chrome': 'chromedriver.exe',
+                     'FireFox': 'geckodriver.exe'
+                     }
 IMPLICITLY_WAIT = 10
 # because fastcup raise "HTTP 429 Too Many Requests" :\
 SLEEP_ON_PAGE = 0.4
@@ -53,13 +59,9 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
 
         self.button_load_file.clicked.connect(self.load_data)
 
-        # selenium settings
-        self.capabilities = {
-            "browserName": "chrome",
-            "version": "latest",
-            "javascriptEnabled": True
-        }
         self.driver = None
+        self.browser = None
+        self.save_stats = None
         screen_size = QtWidgets.QDesktopWidget().availableGeometry()
         self.height = int(screen_size.height() * 0.85)
         self.width = int(screen_size.width() * 0.95)
@@ -70,14 +72,16 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
 
         save_in_file = self.checkbox_save_in_file.isChecked()
         self.save_stats = self.checkbox_save_stats.isChecked()
+        self.browser = self.combox_browsers.currentText()
         player_name = self.line_edit.text()
-        if not path.exists(PATH_TO_WEBDRIVER):
+        if not path.exists(PATH_TO_WEBDRIVER[self.browser]):
             msg.about(self, "Error!", "WebDriver not found!")
             return
         if not player_name:
             msg.about(self, "Warning!", "<p align='left'>Enter nickname!</p>")
             return
-        self.init_web_driver()
+        if not self.init_web_driver():
+            return
         # open the page
         self.driver.get(PLAYERS)
         try:
@@ -177,10 +181,14 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         df = df.sort_values('Дата')
         return df
 
-    def init_web_driver(self):
-        self.driver = webdriver.Chrome(executable_path=PATH_TO_WEBDRIVER,
-                                       desired_capabilities=self.capabilities)
-        self.driver.implicitly_wait(IMPLICITLY_WAIT)
+    def init_web_driver(self) -> bool:
+        try:
+            self.driver = webdriver.Chrome(executable_path=PATH_TO_WEBDRIVER[self.browser],
+                                           desired_capabilities=CAPABILITIES[self.browser])
+            self.driver.implicitly_wait(IMPLICITLY_WAIT)
+            return True
+        except SessionNotCreatedException:
+            return False
 
     def data_preparation(self, data: str) -> [list]:
         """
@@ -504,7 +512,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         p.rect(x="x", y="y", width=1, height=1,
                source=source,
                fill_color={'field': 'number_of_fights', 'transform': color_mapper},
-               line_color='#deebf7',
+               # line_color='#deebf7',
                name='rect')
         p.tools.append(hover_tools)
 
