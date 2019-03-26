@@ -28,6 +28,7 @@ SLEEP_ON_PAGE = {'Chrome': 0.4,
                  'FireFox': 0}
 PLAYERS = 'https://fastcup.net/players.html'
 FIGHT = 'https://fastcup.net/fight.html?id=%s'
+DAY_TO_STR = {1: 'Monday', 2: 'Tuesday', 3: 'Wednesday', 4: 'Thursday', 5: 'Friday', 6: 'Saturday', 7: 'Sunday'}
 STYLES_FILE = 'fcstats.qss'
 FONT = 'Segoe UI'
 
