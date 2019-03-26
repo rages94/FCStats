@@ -18,16 +18,18 @@ from bokeh.transform import dodge
 import form
 
 # selenium settings
-CAPABILITIES = {'Chrome': {"browserName": "chrome", "version": "latest", "javascriptEnabled": True},
-                'FireFox': {"alwaysMatch": {"browserName": "firefox", "browserVersion": "latest"}, "javascriptEnabled": True}}
+CAPABILITIES = {'Chrome': {'browserName': 'chrome', 'version': 'latest', 'javascriptEnabled': True},
+                'FireFox': {"alwaysMatch": {'browserName': 'firefox', 'browserVersion': 'latest'}, 'javascriptEnabled': True}}
+IMPLICITLY_WAIT = 10
 PATH_TO_WEBDRIVER = {'Chrome': 'chromedriver.exe',
                      'FireFox': 'geckodriver.exe'}
-IMPLICITLY_WAIT = 10
 # because fastcup raise "HTTP 429 Too Many Requests" :\
 SLEEP_ON_PAGE = {'Chrome': 0.4,
                  'FireFox': 0}
-PLAYERS = "https://fastcup.net/players.html"
+PLAYERS = 'https://fastcup.net/players.html'
 FIGHT = 'https://fastcup.net/fight.html?id=%s'
+STYLES_FILE = 'fcstats.qss'
+FONT = 'Segoe UI'
 
 
 def read_file(filename: str) -> str:
@@ -45,8 +47,8 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
 
         # init design
         self.setupUi(self)
-        self.setFont(QtGui.QFont("Segoe UI", 8))
-        self.setStyleSheet(read_file('fcstats.qss'))
+        self.setFont(QtGui.QFont(FONT, 8))
+        self.setStyleSheet(read_file(STYLES_FILE))
 
         # start function by button
         self.button_create_stats.clicked.connect(self.main_process)
@@ -157,9 +159,6 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             time.sleep(6)  # for load file
             remove(f"Fights_{player_name}.html")
 
-    def _get_element_list(self, xpath: str):
-        return self.driver.find_element(By.XPATH, xpath).text.split('\n')
-
     def data_collection(self, number_of_pages: int) -> list:
         data = []
         for i in range(2, number_of_pages + 1):
@@ -170,15 +169,6 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             time.sleep(SLEEP_ON_PAGE[self.browser])
         data.append(self._get_element_list("//div[@id='mtabs-battles']")[2:])
         return data
-
-    def create_dataframe(self, dt: [list]) -> DataFrame:
-        labels = ["Игра", "Дата", "Время", "Год", "Месяц", "День", "Час", "Минуты", "Канал", "Размер", "Карта",
-                  "Сторона", "Результат", "Фраги", "Смерти", "Скилл", "Деление", "Опыт"]
-        df = DataFrame.from_records(dt, columns=labels).iloc[::-1]
-        df['Дата'] = df.Дата.astype('datetime64[ns]')
-        df['ДеньНедели'] = [str(date.isoweekday()) for date in df.Дата]
-        df = df.sort_values('Дата')
-        return df
 
     def init_web_driver(self) -> bool:
         try:
@@ -232,28 +222,6 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             dt.append([fight, date, time, year, month, day, hour, minutes, type_game,
                       xvsx, mp, side, result, k, d, points, sep, exp])
         return dt
-
-    def __get_date_time(self, lst_dt: [str]) -> (str, str):
-        month_to_num = dict(января='01', февраля='02', марта='03', апреля='04', мая='05', июня='06',
-                            июля='07', августа='08', сентября='09', октября='10', ноября='11', декабря='12')
-        days_to_int = dict(Сегодня=0, Вчера=1, Позавчера=2)
-
-        now = datetime.today()
-        if len(lst_dt) == 4:
-            if lst_dt[2] == 'назад':
-                date = now.strftime("%Y-%m-%d")
-                time = now.strftime("%H:%M")
-                if 'мин' in lst_dt[1]:
-                    time = (now - timedelta(minutes=int(lst_dt[0]))).strftime("%H:%M")
-            else:
-                time = lst_dt[3]
-                lst_dt[0] = lst_dt[0].zfill(2)
-                lst_dt[1] = month_to_num[lst_dt[1]]
-                date = '-'.join(lst_dt[2::-1])
-        else:
-            time = lst_dt[1]
-            date = (now - timedelta(days=days_to_int[lst_dt[0]])).strftime("%Y-%m-%d")
-        return date, time
 
     def search_player(self, player_name: str):
         element = self.driver.find_element(By.XPATH, "//input[@placeholder='Ник или STEAM_0:X:XXXXXX']")
@@ -382,7 +350,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         return Panel(child=p, title='Skill-' + name % 's')
 
     def build_categorical_hist(self, df: DataFrame, group_by_col, name: str, visible_xaxis=True,
-                              visible_grid=True, label_orientation=False) -> Panel:
+                               visible_grid=True, label_orientation=False) -> Panel:
         # prepare data
         df_group = df.groupby(group_by_col)
         wins_defeats_count = df.groupby(group_by_col).Результат.value_counts()
@@ -540,8 +508,11 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
 
         return Panel(child=p, title='Years-Months')
 
-    def common_table(self, df: DataFrame):
-        # https://github.com/bokeh/bokeh/issues/7120
+    def _get_element_list(self, xpath: str):
+        return self.driver.find_element(By.XPATH, xpath).text.split('\n')
+
+    @staticmethod
+    def common_table(df: DataFrame):
         ddf = df.Игра.groupby(df.Результат).count().to_frame()
 
         source = ColumnDataSource(data=dict(
@@ -558,6 +529,39 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         data_table = DataTable(source=source, columns=columns, width=800)
 
         return Panel(child=data_table, title='Other statistics')
+
+    @staticmethod
+    def create_dataframe(dt: [list]) -> DataFrame:
+        labels = ["Игра", "Дата", "Время", "Год", "Месяц", "День", "Час", "Минуты", "Канал", "Размер", "Карта",
+                  "Сторона", "Результат", "Фраги", "Смерти", "Скилл", "Деление", "Опыт"]
+        df = DataFrame.from_records(dt, columns=labels).iloc[::-1]
+        df['Дата'] = df.Дата.astype('datetime64[ns]')
+        df['ДеньНедели'] = [str(date.isoweekday()) for date in df.Дата]
+        df = df.sort_values('Дата')
+        return df
+
+    @staticmethod
+    def __get_date_time(lst_dt: [str]) -> (str, str):
+        month_to_num = dict(января='01', февраля='02', марта='03', апреля='04', мая='05', июня='06',
+                            июля='07', августа='08', сентября='09', октября='10', ноября='11', декабря='12')
+        days_to_int = dict(Сегодня=0, Вчера=1, Позавчера=2)
+
+        now = datetime.today()
+        if len(lst_dt) == 4:
+            if lst_dt[2] == 'назад':
+                date = now.strftime("%Y-%m-%d")
+                time = now.strftime("%H:%M")
+                if 'мин' in lst_dt[1]:
+                    time = (now - timedelta(minutes=int(lst_dt[0]))).strftime("%H:%M")
+            else:
+                time = lst_dt[3]
+                lst_dt[0] = lst_dt[0].zfill(2)
+                lst_dt[1] = month_to_num[lst_dt[1]]
+                date = '-'.join(lst_dt[2::-1])
+        else:
+            time = lst_dt[1]
+            date = (now - timedelta(days=days_to_int[lst_dt[0]])).strftime("%Y-%m-%d")
+        return date, time
 
     @staticmethod
     def replace_unsupported_chars(string: str) -> str:
