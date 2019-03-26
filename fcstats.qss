@@ -24,7 +24,7 @@ QPushButton:pressed {
 QLineEdit {
 	border: 1px solid #00affa;
 	background-color: #ffffff;
-	min-height: 22px;
+	min-height: 21px;
 }
 QCheckBox {
 	color: #2b3335;
@@ -32,4 +32,27 @@ QCheckBox {
 QCheckBox::indicator {
     background: none;
 	color: #00affa;
+}
+QComboBox {
+    border: 1px solid #00affa;
+    padding: 1px 18px 1px 3px;
+	min-height: 21px;
+	max-height: 21px;
+}
+
+QComboBox:editable {
+    background: #ffffff;
+}
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 15px;
+    border-left-width: 1px;
+}
+QComboBox::drop-down {
+	background-color: #e0e3ff;
+}
+QComboBox QAbstractItemView {
+    border: 2px solid darkgray;
+    selection-background-color: #00affa;
 }
