@@ -21,13 +21,13 @@ import form
 # --------------------- CONFIG ---------------------
 # selenium settings
 CAPABILITIES = {'Chrome': {'browserName': 'chrome', 'version': 'latest', 'javascriptEnabled': True},
-                'FireFox': {"alwaysMatch": {'browserName': 'firefox', 'browserVersion': 'latest'}, 'javascriptEnabled': True}}
+                'Firefox': {"alwaysMatch": {'browserName': 'Firefox', 'browserVersion': 'latest'}, 'javascriptEnabled': True}}
 IMPLICITLY_WAIT = 10
 PATH_TO_WEBDRIVER = {'Chrome': 'chromedriver.exe',
-                     'FireFox': 'geckodriver.exe'}
+                     'Firefox': 'geckodriver.exe'}
 # because fastcup raise "HTTP 429 Too Many Requests" :\
 SLEEP_ON_PAGE = {'Chrome': 0.4,
-                 'FireFox': 0}
+                 'Firefox': 0}
 PLAYERS = 'https://fastcup.net/players.html'
 FIGHT = 'https://fastcup.net/fight.html?id=%s'
 DAY_TO_STR = {1: 'Monday', 2: 'Tuesday', 3: 'Wednesday', 4: 'Thursday', 5: 'Friday', 6: 'Saturday', 7: 'Sunday'}
@@ -125,6 +125,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             logger.warning(f'%s in search player, {self.browser}' % e)
         except Exception as e:
             logger.error(str(e))
+            msg.about(self, "Ошибка!", 'Что-то пошло не так...')
         else:
             try:
                 number_of_pages = int(self._get_element_list("//div[@id='mtabs-battles']")[0].split()[-1])
@@ -137,8 +138,8 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
                     self.save_data(data)
             except ValueError:
                 self.driver.close()
-                msg.about(self, "Внимание!", "Нет данных!")
                 logger.info("Нет данных")
+                msg.about(self, "Внимание!", "Нет данных!")
             except AttributeError as e:
                 logger.warning(f'%s in collection, {self.browser}' % e)
             except NoSuchWindowException:
@@ -147,11 +148,13 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
                 logger.warning(f'WebDriverException in collection, {self.browser}')
             except Exception as e:
                 logger.error(str(e))
+                msg.about(self, "Ошибка!", 'Что-то пошло не так...')
             else:
                 try:
                     self.visualization(data, player_name)
                 except Exception as e:
                     logger.error(str(e))
+                    msg.about(self, "Ошибка!", 'Что-то пошло не так...')
 
     def load_data(self):
         try:
@@ -168,6 +171,8 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
                 self.visualization('\n'.join(data), file_name)
         except Exception as e:
             logger.error(str(e))
+            msg = QtWidgets.QMessageBox
+            msg.about(self, "Ошибка!", 'Что-то пошло не так...')
 
     def visualization(self, data, player_name):
         logger.debug('Start visualuzation')
@@ -251,7 +256,10 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
                 result = ln[x+9]
             else:
                 result = ln[x+9]
-                k, d = map(int, ln[x+10].split('/'))
+                try:
+                    k, d = map(int, ln[x+10].split('/'))
+                except ValueError:
+                    k, d = 0, 0
                 points = float(ln[x+11])
                 try:
                     if ln[x+12][0] == "(":
@@ -313,7 +321,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         hover_tools = HoverTool(tooltips=TOOLTIPS, line_policy='nearest', point_policy='snap_to_data')
 
         # sizing_mode='stretch_both' don't work in tabs :(
-        p = figure(title="Click to fights!", x_axis_label='Number of fight', y_axis_label='Skill',
+        p = figure(title="Click on fights!", x_axis_label='Fight number', y_axis_label='Skill',
                    tools="pan,tap,wheel_zoom,reset", active_drag="pan", width=self.width, height=self.height)
 
         p.circle('x', 'y', size=8, nonselection_fill_alpha=0.7, fill_alpha=0.7, source=source,
@@ -324,7 +332,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
 
         color_bar = ColorBar(color_mapper=color_mapper, major_label_text_font_size="8pt",
                              ticker=BasicTicker(desired_num_ticks=len(colors)),
-                             formatter=PrintfTickFormatter(format='%d difference k/d'),
+                             formatter=PrintfTickFormatter(format='%d k/d difference'),
                              label_standoff=21, border_line_color=None, location=(0, 0))
         p.add_layout(color_bar, 'right')
 
