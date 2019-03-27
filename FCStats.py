@@ -1,7 +1,8 @@
 import sys
-import time
-from os import path, remove
+from time import strftime, localtime, sleep
+from os import path, remove, makedirs
 from datetime import datetime, timedelta
+import logging
 
 from PyQt5 import QtWidgets, QtGui
 from selenium import webdriver
@@ -17,6 +18,7 @@ from bokeh.transform import dodge
 
 import form
 
+# --------------------- CONFIG ---------------------
 # selenium settings
 CAPABILITIES = {'Chrome': {'browserName': 'chrome', 'version': 'latest', 'javascriptEnabled': True},
                 'FireFox': {"alwaysMatch": {'browserName': 'firefox', 'browserVersion': 'latest'}, 'javascriptEnabled': True}}
@@ -31,11 +33,32 @@ FIGHT = 'https://fastcup.net/fight.html?id=%s'
 DAY_TO_STR = {1: 'Monday', 2: 'Tuesday', 3: 'Wednesday', 4: 'Thursday', 5: 'Friday', 6: 'Saturday', 7: 'Sunday'}
 STYLES_FILE = 'fcstats.qss'
 FONT = 'Segoe UI'
+LOG_DIRECTORY = 'log'
+
+# --------------------------------------------------
+
+
+def make_dir(path_):
+    if not path.exists(path_):
+        makedirs(path_)
 
 
 def read_file(filename: str) -> str:
     with open(filename, 'r', encoding='utf-8') as f:
         return f.read()
+
+
+# for logs
+log_file_name = "log_%s.txt" % strftime("%Y-%m-%d", localtime())
+make_dir(LOG_DIRECTORY)
+logger = logging.getLogger("log")
+logger.setLevel(logging.INFO)
+# create the logging file handler
+fh = logging.FileHandler(path.join(LOG_DIRECTORY, log_file_name))
+formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+fh.setFormatter(formatter)
+# add handler to logger object
+logger.addHandler(fh)
 
 
 # form.ui -> form.py: pyuic5 form.ui -o form.py
@@ -67,6 +90,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         self.width = int(screen_size.width() * 0.95)
 
     def main_process(self):
+        logger.debug('Start collecting data')
         # init messagebox
         msg = QtWidgets.QMessageBox
 
@@ -75,11 +99,11 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         self.browser = self.combox_browsers.currentText()
         player_name = self.line_edit.text()
         if not path.exists(PATH_TO_WEBDRIVER[self.browser]):
-            msg.about(self, "Ошибка!", f"WebDriver не найден! Для {self.browser} он должен называться {PATH_TO_WEBDRIVER[self.browser]} и лежать в корне вместе с исполняемым файлом!")
-            return
+            mess = f"WebDriver не найден! Для {self.browser} он должен называться {PATH_TO_WEBDRIVER[self.browser]} и лежать в корне вместе с исполняемым файлом!"
+            logger.error(mess)
+            msg.about(self, "Ошибка!", mess)
         if not player_name:
             msg.about(self, "Внимание!", "<p align='left'>Введите ник игрока!</p>")
-            return
         if not self.init_web_driver():
             return
         # open the page
@@ -90,16 +114,21 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             player.click()
         except NoSuchElementException:
             self.driver.close()
-            msg.about(self, "Внимание!", f"Пользователь с ником {player_name} не найден!")
+            mess2 = f"Пользователь с ником {player_name} не найден!"
+            logger.info(mess2)
+            msg.about(self, "Внимание!", mess2)
         except NoSuchWindowException:
-            return
+            logger.warning(f'NoSuchWindowException in search player, {self.browser}')
         except WebDriverException:
-                return
-        except AttributeError:
-            return
+            logger.warning(f'WebDriverException in search player, {self.browser}')
+        except AttributeError as e:
+            logger.warning(f'%s in search player, {self.browser}' % e)
+        except Exception as e:
+            logger.error(str(e))
         else:
             try:
                 number_of_pages = int(self._get_element_list("//div[@id='mtabs-battles']")[0].split()[-1])
+                logger.info(f'Player: {player_name}, number of pages: {number_of_pages}, browser: {self.browser}')
                 data = self.data_collection(number_of_pages)
                 self.driver.close()
                 data = ["\n".join(page) for page in data]
@@ -109,28 +138,39 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             except ValueError:
                 self.driver.close()
                 msg.about(self, "Внимание!", "Нет данных!")
-            except AttributeError:
-                return
+                logger.info("Нет данных")
+            except AttributeError as e:
+                logger.warning(f'%s in collection, {self.browser}' % e)
             except NoSuchWindowException:
-                return
+                logger.warning(f'NoSuchWindowException in collection, {self.browser}')
             except WebDriverException:
-                return
+                logger.warning(f'WebDriverException in collection, {self.browser}')
+            except Exception as e:
+                logger.error(str(e))
             else:
-                self.visualization(data, player_name)
+                try:
+                    self.visualization(data, player_name)
+                except Exception as e:
+                    logger.error(str(e))
 
     def load_data(self):
-        self.save_stats = self.checkbox_save_stats.isChecked()
-        directory = QtWidgets.QFileDialog.getOpenFileNames(self, "Загрузка файлов", filter="*.txt")
-        path_to_files = directory[0]
-        if path_to_files:
-            data = []
-            for path_to_file in path_to_files:
-                with open(path_to_file, 'r', encoding='utf-8') as f:
-                    data.append(f.read())
-            file_name = path_to_files[0].split('/')[-1][:-4] if len(path_to_files) == 1 else 'Union'
-            self.visualization('\n'.join(data), file_name)
+        try:
+            logger.debug('Load from file')
+            self.save_stats = self.checkbox_save_stats.isChecked()
+            directory = QtWidgets.QFileDialog.getOpenFileNames(self, "Загрузка файлов", filter="*.txt")
+            path_to_files = directory[0]
+            if path_to_files:
+                data = []
+                for path_to_file in path_to_files:
+                    with open(path_to_file, 'r', encoding='utf-8') as f:
+                        data.append(f.read())
+                file_name = path_to_files[0].split('/')[-1][:-4] if len(path_to_files) == 1 else 'Union'
+                self.visualization('\n'.join(data), file_name)
+        except Exception as e:
+            logger.error(str(e))
 
     def visualization(self, data, player_name):
+        logger.debug('Start visualuzation')
         prepared_data = self.data_preparation(data)
         df = self.create_dataframe(prepared_data)
         df_wins_defeats = df[(df.Результат == "Победа") | (df.Результат == "Поражение")]
@@ -155,34 +195,39 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         tabs = Tabs(tabs=[tab_skill_fights, tab_maps, tab_sizes, tab_sides, tab_dates,
                           tab_years, tab_months, tab_daysofweek, tab_hours, tab_maps_sides, tab_hm, tab_table])
         show(tabs)
+        logger.debug('End visualuzation')
 
         if not self.save_stats:
-            time.sleep(6)  # for load file
+            sleep(6)  # for load file
             remove(f"Fights_{player_name}.html")
 
     def data_collection(self, number_of_pages: int) -> list:
+        logger.debug('Data collection')
         data = []
         for i in range(2, number_of_pages + 1):
             data.append(self._get_element_list("//div[@id='mtabs-battles']")[2:])
             # click next page
             self.driver.find_element(By.XPATH, "//div[@id='mtabs-battles']/a[contains(text(), '%d')]" % i).click()
             # because fastcup raise "HTTP 429 Too Many Requests" :\
-            time.sleep(SLEEP_ON_PAGE[self.browser])
+            sleep(SLEEP_ON_PAGE[self.browser])
         data.append(self._get_element_list("//div[@id='mtabs-battles']")[2:])
         return data
 
     def init_web_driver(self) -> bool:
         try:
+            logger.debug('Init web driver')
             self.driver = webdriver.Chrome(executable_path=PATH_TO_WEBDRIVER[self.browser],
                                            desired_capabilities=CAPABILITIES[self.browser])
             self.driver.implicitly_wait(IMPLICITLY_WAIT)
             return True
         except SessionNotCreatedException:
+            logging.warning('SessionNotCreatedException in init_web_driver()')
             return False
 
     def data_preparation(self, data: str) -> [list]:
         """
         Don't try to understand it, just believe"""
+        logger.debug('Data preparation')
         dt = []
         for line in data.split("\n"):
             if not line:
@@ -225,6 +270,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         return dt
 
     def search_player(self, player_name: str):
+        logger.debug('Search player')
         element = self.driver.find_element(By.XPATH, "//input[@placeholder='Ник или STEAM_0:X:XXXXXX']")
         element.send_keys(player_name)
         element.send_keys(Keys.ENTER)
@@ -237,6 +283,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
                 f.write(data)
 
     def build_graph_skill_fights(self, df: DataFrame) -> Panel:
+        logger.debug('Graph skill-fights')
         y = df.Скилл
         x = range(1, len(y) + 1)
         fights = list(map(lambda x_: x_[1:], df.Игра))
@@ -287,6 +334,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         return Panel(child=p, title='Skill-Fights')
 
     def build_hist(self, df: DataFrame, group_by_col, name: str, visible_xaxis=True, visible_grid=True, label_orientation=False) -> Panel:
+        logger.debug(f'Build hist {name}')
         # prepare data
         df_group = df.groupby(group_by_col).Скилл
         wins_defeats_count = df.groupby(group_by_col).Результат.value_counts()
@@ -352,6 +400,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
 
     def build_categorical_hist(self, df: DataFrame, group_by_col, name: str, visible_xaxis=True,
                                visible_grid=True, label_orientation=False) -> Panel:
+        logger.debug('Categorical hist')
         # prepare data
         df_group = df.groupby(group_by_col)
         wins_defeats_count = df.groupby(group_by_col).Результат.value_counts()
@@ -420,6 +469,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         return Panel(child=p, title='Skill-' + name % 's')
 
     def heat_map(self, df: DataFrame, group_by_col) -> Panel:
+        logger.debug('Heat map')
         df_group = df.groupby(group_by_col)
         wins_defeats_count = df.groupby(group_by_col).Результат.value_counts()
 
@@ -514,6 +564,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
 
     @staticmethod
     def common_table(df: DataFrame):
+        logger.debug('Common table')
         ddf = df.Игра.groupby(df.Результат).count().to_frame()
 
         source = ColumnDataSource(data=dict(
@@ -572,10 +623,15 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
 
 
 def main():
-    app = QtWidgets.QApplication(sys.argv)
-    window = ExampleApp()
-    window.show()
-    app.exec_()
+    try:
+        logger.debug('Start program')
+        app = QtWidgets.QApplication(sys.argv)
+        window = ExampleApp()
+        window.show()
+        app.exec_()
+        logger.debug('End program')
+    except Exception as e:
+        logger.error(str(e))
 
 
 if __name__ == '__main__':
