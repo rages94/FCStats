@@ -52,7 +52,7 @@ def read_file(filename: str) -> str:
 log_file_name = "log_%s.txt" % strftime("%Y-%m-%d", localtime())
 make_dir(LOG_DIRECTORY)
 logger = logging.getLogger("log")
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 # create the logging file handler
 fh = logging.FileHandler(path.join(LOG_DIRECTORY, log_file_name))
 formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
