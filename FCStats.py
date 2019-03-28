@@ -1,7 +1,8 @@
 import sys
-import time
-from os import path, remove
+from time import strftime, localtime, sleep
+from os import path, remove, makedirs, getcwd
 from datetime import datetime, timedelta
+import logging
 
 from PyQt5 import QtWidgets, QtGui
 from selenium import webdriver
@@ -17,25 +18,47 @@ from bokeh.transform import dodge
 
 import form
 
+# --------------------- CONFIG ---------------------
 # selenium settings
 CAPABILITIES = {'Chrome': {'browserName': 'chrome', 'version': 'latest', 'javascriptEnabled': True},
-                'FireFox': {"alwaysMatch": {'browserName': 'firefox', 'browserVersion': 'latest'}, 'javascriptEnabled': True}}
+                'Firefox': {"alwaysMatch": {'browserName': 'Firefox', 'browserVersion': 'latest'}, 'javascriptEnabled': True}}
 IMPLICITLY_WAIT = 10
 PATH_TO_WEBDRIVER = {'Chrome': 'chromedriver.exe',
-                     'FireFox': 'geckodriver.exe'}
+                     'Firefox': 'geckodriver.exe'}
 # because fastcup raise "HTTP 429 Too Many Requests" :\
 SLEEP_ON_PAGE = {'Chrome': 0.4,
-                 'FireFox': 0}
+                 'Firefox': 0}
 PLAYERS = 'https://fastcup.net/players.html'
 FIGHT = 'https://fastcup.net/fight.html?id=%s'
 DAY_TO_STR = {1: 'Monday', 2: 'Tuesday', 3: 'Wednesday', 4: 'Thursday', 5: 'Friday', 6: 'Saturday', 7: 'Sunday'}
 STYLES_FILE = 'fcstats.qss'
 FONT = 'Segoe UI'
+LOG_DIRECTORY = 'log'
+
+# --------------------------------------------------
+
+
+def make_dir(path_):
+    if not path.exists(path_):
+        makedirs(path_)
 
 
 def read_file(filename: str) -> str:
     with open(filename, 'r', encoding='utf-8') as f:
         return f.read()
+
+
+# for logs
+log_file_name = "log_%s.txt" % strftime("%Y-%m-%d", localtime())
+make_dir(LOG_DIRECTORY)
+logger = logging.getLogger("log")
+logger.setLevel(logging.DEBUG)
+# create the logging file handler
+fh = logging.FileHandler(path.join(LOG_DIRECTORY, log_file_name))
+formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+fh.setFormatter(formatter)
+# add handler to logger object
+logger.addHandler(fh)
 
 
 # form.ui -> form.py: pyuic5 form.ui -o form.py
@@ -67,6 +90,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         self.width = int(screen_size.width() * 0.95)
 
     def main_process(self):
+        logger.debug('Start collecting data')
         # init messagebox
         msg = QtWidgets.QMessageBox
 
@@ -75,7 +99,9 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         self.browser = self.combox_browsers.currentText()
         player_name = self.line_edit.text()
         if not path.exists(PATH_TO_WEBDRIVER[self.browser]):
-            msg.about(self, "Ошибка!", f"WebDriver не найден! Для {self.browser} он должен называться {PATH_TO_WEBDRIVER[self.browser]} и лежать в корне вместе с исполняемым файлом!")
+            mess = f"WebDriver не найден! Для {self.browser} он должен называться {PATH_TO_WEBDRIVER[self.browser]} и лежать в корне вместе с исполняемым файлом!"
+            logger.error(mess)
+            msg.about(self, "Ошибка!", mess)
             return
         if not player_name:
             msg.about(self, "Внимание!", "<p align='left'>Введите ник игрока!</p>")
@@ -90,16 +116,22 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             player.click()
         except NoSuchElementException:
             self.driver.close()
-            msg.about(self, "Внимание!", f"Пользователь с ником {player_name} не найден!")
+            mess2 = f"Пользователь с ником {player_name} не найден!"
+            logger.info(mess2)
+            msg.about(self, "Внимание!", mess2)
         except NoSuchWindowException:
-            return
+            logger.warning(f'NoSuchWindowException in search player, {self.browser}')
         except WebDriverException:
-                return
-        except AttributeError:
-            return
+            logger.warning(f'WebDriverException in search player, {self.browser}')
+        except AttributeError as e:
+            logger.warning(f'%s in search player, {self.browser}' % e)
+        except Exception as e:
+            logger.error(str(e))
+            msg.about(self, "Ошибка!", 'Что-то пошло не так...')
         else:
             try:
                 number_of_pages = int(self._get_element_list("//div[@id='mtabs-battles']")[0].split()[-1])
+                logger.info(f'Player: {player_name}, number of pages: {number_of_pages}, browser: {self.browser}')
                 data = self.data_collection(number_of_pages)
                 self.driver.close()
                 data = ["\n".join(page) for page in data]
@@ -108,81 +140,133 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
                     self.save_data(data)
             except ValueError:
                 self.driver.close()
+                logger.info("Нет данных")
                 msg.about(self, "Внимание!", "Нет данных!")
-            except AttributeError:
-                return
+            except AttributeError as e:
+                logger.warning(f'%s in collection, {self.browser}' % e)
             except NoSuchWindowException:
-                return
+                logger.warning(f'NoSuchWindowException in collection, {self.browser}')
             except WebDriverException:
-                return
+                logger.warning(f'WebDriverException in collection, {self.browser}')
+            except Exception as e:
+                logger.error(str(e))
+                msg.about(self, "Ошибка!", 'Что-то пошло не так...')
             else:
-                self.visualization(data, player_name)
+                try:
+                    self.visualization(data, player_name)
+                except Exception as e:
+                    logger.error(str(e))
+                    msg.about(self, "Ошибка!", 'Что-то пошло не так...')
 
     def load_data(self):
-        self.save_stats = self.checkbox_save_stats.isChecked()
-        directory = QtWidgets.QFileDialog.getOpenFileNames(self, "Загрузка файлов", filter="*.txt")
-        path_to_files = directory[0]
-        if path_to_files:
-            data = []
-            for path_to_file in path_to_files:
-                with open(path_to_file, 'r', encoding='utf-8') as f:
-                    data.append(f.read())
-            file_name = path_to_files[0].split('/')[-1][:-4] if len(path_to_files) == 1 else 'Union'
-            self.visualization('\n'.join(data), file_name)
+        try:
+            logger.debug('Load from file')
+            self.save_stats = self.checkbox_save_stats.isChecked()
+            directory = QtWidgets.QFileDialog.getOpenFileNames(self, "Загрузка файлов", filter="*.txt")
+            path_to_files = directory[0]
+            if path_to_files:
+                data = []
+                for path_to_file in path_to_files:
+                    with open(path_to_file, 'r', encoding='utf-8') as f:
+                        data.append(f.read())
+                file_name = path_to_files[0].split('/')[-1][:-4] if len(path_to_files) == 1 else 'Union'
+                self.visualization('\n'.join(data), file_name)
+        except Exception as e:
+            logger.error(str(e))
+            msg = QtWidgets.QMessageBox
+            msg.about(self, "Ошибка!", 'Что-то пошло не так...')
 
     def visualization(self, data, player_name):
+        logger.debug('Start visualuzation')
         prepared_data = self.data_preparation(data)
         df = self.create_dataframe(prepared_data)
         df_wins_defeats = df[(df.Результат == "Победа") | (df.Результат == "Поражение")]
         series_date = [str(date).split()[0] for date in df_wins_defeats.Дата.sort_values()]
+        tabs = []
 
         player_name = self.replace_unsupported_chars(player_name)
-        output_file(f"Fights_{player_name}.html", title='FCStats')
+        file_name = f"Fights_{player_name}.html"
+        output_file(file_name, title='FCStats')
 
-        tab_table = self.common_table(df)
-        tab_skill_fights = self.build_graph_skill_fights(df_wins_defeats)
-        tab_maps = self.build_hist(df_wins_defeats, 'Карта', 'Map%s', label_orientation=True)
-        tab_sizes = self.build_hist(df_wins_defeats, 'Размер', 'Size%s')
-        tab_sides = self.build_hist(df_wins_defeats, 'Сторона', 'Side%s')
-        tab_dates = self.build_hist(df_wins_defeats, series_date, 'Date%s', visible_xaxis=False, visible_grid=False)
-        tab_years = self.build_hist(df_wins_defeats, 'Год', 'Year%s')
-        tab_months = self.build_hist(df_wins_defeats, 'Месяц', 'Month%s')
-        tab_daysofweek = self.build_hist(df_wins_defeats, 'ДеньНедели', 'Day%sOfWeek')
-        tab_hours = self.build_hist(df_wins_defeats, 'Час', 'Hour%s', visible_grid=False)
-        tab_maps_sides = self.build_categorical_hist(df_wins_defeats, ['Карта', 'Сторона'], 'Map-Side%s', label_orientation=True)
-        tab_hm = self.heat_map(df_wins_defeats, ['Год', 'Месяц'])
+        tabs.append(Panel(child=self.build_graph_skill_fights(df_wins_defeats), title='Skill-Fights'))
 
-        tabs = Tabs(tabs=[tab_skill_fights, tab_maps, tab_sizes, tab_sides, tab_dates,
-                          tab_years, tab_months, tab_daysofweek, tab_hours, tab_maps_sides, tab_hm, tab_table])
+        p = self.build_hist(df_wins_defeats, 'Карта', 'Map', label_orientation=True)
+        if p:
+            tabs.append(Panel(child=p, title='Skill-Maps'))
+
+        p = self.build_hist(df_wins_defeats, 'Размер', 'Size')
+        if p:
+            tabs.append(Panel(child=p, title='Skill-Sizes'))
+
+        p = self.build_hist(df_wins_defeats, 'Сторона', 'Side')
+        if p:
+            tabs.append(Panel(child=p, title='Skill-Sides'))
+
+        p = self.build_hist(df_wins_defeats, series_date, 'Date', visible_xaxis=False, visible_grid=False)
+        if p:
+            tabs.append(Panel(child=p, title='Skill-Dates'))
+
+        p = self.build_hist(df_wins_defeats, 'Год', 'Year')
+        if p:
+            tabs.append(Panel(child=p, title='Skill-Years'))
+
+        p = self.build_hist(df_wins_defeats, 'Месяц', 'Month')
+        if p:
+            tabs.append(Panel(child=p, title='Skill-Months'))
+
+        p = self.build_hist(df_wins_defeats, 'ДеньНедели', 'DayOfWeek')
+        if p:
+            tabs.append(Panel(child=p, title='Skill-DaysOfWeek'))
+
+        p = self.build_hist(df_wins_defeats, 'Час', 'Hour', visible_grid=False)
+        if p:
+            tabs.append(Panel(child=p, title='Skill-Hours'))
+
+        p = self.build_categorical_hist(df_wins_defeats, ['Карта', 'Сторона'], 'Map-Side', label_orientation=True)
+        if p:
+            tabs.append(Panel(child=p, title='Skill-Maps'))
+
+        p = self.heat_map(df_wins_defeats, ['Год', 'Месяц'])
+        if p:
+            tabs.append(Panel(child=p, title='Years-Month'))
+
+        tabs.append(Panel(child=self.common_table(df), title='Common table'))
+
+        tabs = Tabs(tabs=tabs)
         show(tabs)
+        logger.debug('End visualuzation')
 
         if not self.save_stats:
-            time.sleep(6)  # for load file
-            remove(f"Fights_{player_name}.html")
+            sleep(6)  # for load file
+            remove(file_name)
 
     def data_collection(self, number_of_pages: int) -> list:
+        logger.debug('Data collection')
         data = []
         for i in range(2, number_of_pages + 1):
             data.append(self._get_element_list("//div[@id='mtabs-battles']")[2:])
             # click next page
             self.driver.find_element(By.XPATH, "//div[@id='mtabs-battles']/a[contains(text(), '%d')]" % i).click()
             # because fastcup raise "HTTP 429 Too Many Requests" :\
-            time.sleep(SLEEP_ON_PAGE[self.browser])
+            sleep(SLEEP_ON_PAGE[self.browser])
         data.append(self._get_element_list("//div[@id='mtabs-battles']")[2:])
         return data
 
-    def init_web_driver(self) -> bool:
+    def init_web_driver(self, wait=IMPLICITLY_WAIT) -> bool:
         try:
+            logger.debug('Init web driver')
             self.driver = webdriver.Chrome(executable_path=PATH_TO_WEBDRIVER[self.browser],
                                            desired_capabilities=CAPABILITIES[self.browser])
-            self.driver.implicitly_wait(IMPLICITLY_WAIT)
+            self.driver.implicitly_wait(wait)
             return True
         except SessionNotCreatedException:
+            logging.warning('SessionNotCreatedException in init_web_driver()')
             return False
 
     def data_preparation(self, data: str) -> [list]:
         """
         Don't try to understand it, just believe"""
+        logger.debug('Data preparation')
         dt = []
         for line in data.split("\n"):
             if not line:
@@ -206,8 +290,14 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
                 result = ln[x+9]
             else:
                 result = ln[x+9]
-                k, d = map(int, ln[x+10].split('/'))
-                points = float(ln[x+11])
+                try:
+                    k, d = map(int, ln[x+10].split('/'))
+                except ValueError:
+                    k, d = 0, 0
+                try:
+                    points = float(ln[x+11])
+                except IndexError:
+                    points = 0.0
                 try:
                     if ln[x+12][0] == "(":
                         sep = ln[x+12]
@@ -225,6 +315,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         return dt
 
     def search_player(self, player_name: str):
+        logger.debug('Search player')
         element = self.driver.find_element(By.XPATH, "//input[@placeholder='Ник или STEAM_0:X:XXXXXX']")
         element.send_keys(player_name)
         element.send_keys(Keys.ENTER)
@@ -236,7 +327,8 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             with open(directory[0], "w", encoding='utf-8') as f:
                 f.write(data)
 
-    def build_graph_skill_fights(self, df: DataFrame) -> Panel:
+    def build_graph_skill_fights(self, df: DataFrame):
+        logger.debug('Graph skill-fights')
         y = df.Скилл
         x = range(1, len(y) + 1)
         fights = list(map(lambda x_: x_[1:], df.Игра))
@@ -266,7 +358,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         hover_tools = HoverTool(tooltips=TOOLTIPS, line_policy='nearest', point_policy='snap_to_data')
 
         # sizing_mode='stretch_both' don't work in tabs :(
-        p = figure(title="Click to fights!", x_axis_label='Number of fight', y_axis_label='Skill',
+        p = figure(title="Click on fights!", x_axis_label='Fight number', y_axis_label='Skill',
                    tools="pan,tap,wheel_zoom,reset", active_drag="pan", width=self.width, height=self.height)
 
         p.circle('x', 'y', size=8, nonselection_fill_alpha=0.7, fill_alpha=0.7, source=source,
@@ -277,18 +369,21 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
 
         color_bar = ColorBar(color_mapper=color_mapper, major_label_text_font_size="8pt",
                              ticker=BasicTicker(desired_num_ticks=len(colors)),
-                             formatter=PrintfTickFormatter(format='%d difference k/d'),
+                             formatter=PrintfTickFormatter(format='%d k/d difference'),
                              label_standoff=21, border_line_color=None, location=(0, 0))
         p.add_layout(color_bar, 'right')
 
         url = 'https://fastcup.net/fight.html?id=@fights'
         taptool = p.select(type=TapTool)
         taptool.callback = OpenURL(url=url)
-        return Panel(child=p, title='Skill-Fights')
+        return p
 
-    def build_hist(self, df: DataFrame, group_by_col, name: str, visible_xaxis=True, visible_grid=True, label_orientation=False) -> Panel:
+    def build_hist(self, df: DataFrame, group_by_col, name: str, visible_xaxis=True, visible_grid=True, label_orientation=False):
+        logger.debug(f'Build hist {name}')
         # prepare data
         df_group = df.groupby(group_by_col).Скилл
+        if len(df_group.sum()) <= 1:
+            return False
         wins_defeats_count = df.groupby(group_by_col).Результат.value_counts()
 
         x = list(df_group.sum().index)
@@ -318,7 +413,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             ('Skill', '@y{0.0}'),
             ('Average skill', '@avg_skill{0.000}'),
             ('Number of fights', '@number_of_fights'),
-            (name % '', '@x'),
+            (name, '@x'),
             ('K/D', '@kills/@deaths'),
             ('Wins', '@wins'),
             ('Defeats', '@defeats')
@@ -348,12 +443,15 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             p.grid.grid_line_color = None
             p.axis.major_tick_line_color = None
 
-        return Panel(child=p, title='Skill-' + name % 's')
+        return p
 
     def build_categorical_hist(self, df: DataFrame, group_by_col, name: str, visible_xaxis=True,
-                               visible_grid=True, label_orientation=False) -> Panel:
+                               visible_grid=True, label_orientation=False):
+        logger.debug('Categorical hist')
         # prepare data
         df_group = df.groupby(group_by_col)
+        if len(df_group.sum()) <= 1:
+            return False
         wins_defeats_count = df.groupby(group_by_col).Результат.value_counts()
         # sides_count = df.groupby(group_by_col).Сторона.value_counts()
 
@@ -387,7 +485,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             ('Skill', '@y{0.0}'),
             ('Average skill', '@avg_skill{0.000}'),
             ('Number of fights', '@number_of_fights'),
-            (name % '', '@x'),
+            (name, '@x'),
             ('K/D', '@kills/@deaths'),
             ('Wins', '@wins'),
             ('Defeats', '@defeats')
@@ -417,10 +515,13 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             p.grid.grid_line_color = None
             p.axis.major_tick_line_color = None
 
-        return Panel(child=p, title='Skill-' + name % 's')
+        return p
 
-    def heat_map(self, df: DataFrame, group_by_col) -> Panel:
+    def heat_map(self, df: DataFrame, group_by_col):
+        logger.debug('Heat map')
         df_group = df.groupby(group_by_col)
+        if len(df_group.sum()) <= 1:
+            return False
         wins_defeats_count = df.groupby(group_by_col).Результат.value_counts()
 
         months = df_group.sum().reset_index().Месяц.values
@@ -507,13 +608,14 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
                              label_standoff=13, border_line_color=None, location=(0, 0))
         p.add_layout(color_bar, 'right')
 
-        return Panel(child=p, title='Years-Months')
+        return p
 
     def _get_element_list(self, xpath: str):
         return self.driver.find_element(By.XPATH, xpath).text.split('\n')
 
     @staticmethod
     def common_table(df: DataFrame):
+        logger.debug('Common table')
         ddf = df.Игра.groupby(df.Результат).count().to_frame()
 
         source = ColumnDataSource(data=dict(
@@ -529,7 +631,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
 
         data_table = DataTable(source=source, columns=columns, width=800)
 
-        return Panel(child=data_table, title='Other statistics')
+        return data_table
 
     @staticmethod
     def create_dataframe(dt: [list]) -> DataFrame:
@@ -572,10 +674,15 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
 
 
 def main():
-    app = QtWidgets.QApplication(sys.argv)
-    window = ExampleApp()
-    window.show()
-    app.exec_()
+    try:
+        logger.debug('Start program')
+        app = QtWidgets.QApplication(sys.argv)
+        window = ExampleApp()
+        window.show()
+        app.exec_()
+        logger.debug('End program')
+    except Exception as e:
+        logger.error(str(e))
 
 
 if __name__ == '__main__':
