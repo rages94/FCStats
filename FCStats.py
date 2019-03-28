@@ -102,8 +102,10 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             mess = f"WebDriver не найден! Для {self.browser} он должен называться {PATH_TO_WEBDRIVER[self.browser]} и лежать в корне вместе с исполняемым файлом!"
             logger.error(mess)
             msg.about(self, "Ошибка!", mess)
+            return
         if not player_name:
             msg.about(self, "Внимание!", "<p align='left'>Введите ник игрока!</p>")
+            return
         if not self.init_web_driver():
             return
         # open the page
@@ -260,7 +262,10 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
                     k, d = map(int, ln[x+10].split('/'))
                 except ValueError:
                     k, d = 0, 0
-                points = float(ln[x+11])
+                try:
+                    points = float(ln[x+11])
+                except IndexError:
+                    points = 0.0
                 try:
                     if ln[x+12][0] == "(":
                         sep = ln[x+12]
