@@ -39,7 +39,7 @@ class Ui_form_fcstats(object):
         self.combox_browsers.addItem("")
         self.gridLayout.addWidget(self.combox_browsers, 5, 0, 1, 1)
         self.line_edit = QtWidgets.QLineEdit(self.gridLayoutWidget)
-        self.line_edit.setMaximumSize(QtCore.QSize(200, 20))
+        self.line_edit.setMaximumSize(QtCore.QSize(200, 200))
         self.line_edit.setObjectName("line_edit")
         self.gridLayout.addWidget(self.line_edit, 4, 0, 1, 1)
         self.button_load_file = QtWidgets.QPushButton(self.gridLayoutWidget)
