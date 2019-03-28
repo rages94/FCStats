@@ -1,6 +1,6 @@
 import sys
 from time import strftime, localtime, sleep
-from os import path, remove, makedirs
+from os import path, remove, makedirs, getcwd
 from datetime import datetime, timedelta
 import logging
 
@@ -182,31 +182,63 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         df = self.create_dataframe(prepared_data)
         df_wins_defeats = df[(df.Результат == "Победа") | (df.Результат == "Поражение")]
         series_date = [str(date).split()[0] for date in df_wins_defeats.Дата.sort_values()]
+        tabs = []
 
         player_name = self.replace_unsupported_chars(player_name)
-        output_file(f"Fights_{player_name}.html", title='FCStats')
+        file_name = f"Fights_{player_name}.html"
+        output_file(file_name, title='FCStats')
 
-        tab_table = self.common_table(df)
-        tab_skill_fights = self.build_graph_skill_fights(df_wins_defeats)
-        tab_maps = self.build_hist(df_wins_defeats, 'Карта', 'Map%s', label_orientation=True)
-        tab_sizes = self.build_hist(df_wins_defeats, 'Размер', 'Size%s')
-        tab_sides = self.build_hist(df_wins_defeats, 'Сторона', 'Side%s')
-        tab_dates = self.build_hist(df_wins_defeats, series_date, 'Date%s', visible_xaxis=False, visible_grid=False)
-        tab_years = self.build_hist(df_wins_defeats, 'Год', 'Year%s')
-        tab_months = self.build_hist(df_wins_defeats, 'Месяц', 'Month%s')
-        tab_daysofweek = self.build_hist(df_wins_defeats, 'ДеньНедели', 'Day%sOfWeek')
-        tab_hours = self.build_hist(df_wins_defeats, 'Час', 'Hour%s', visible_grid=False)
-        tab_maps_sides = self.build_categorical_hist(df_wins_defeats, ['Карта', 'Сторона'], 'Map-Side%s', label_orientation=True)
-        tab_hm = self.heat_map(df_wins_defeats, ['Год', 'Месяц'])
+        tabs.append(Panel(child=self.build_graph_skill_fights(df_wins_defeats), title='Skill-Fights'))
 
-        tabs = Tabs(tabs=[tab_skill_fights, tab_maps, tab_sizes, tab_sides, tab_dates,
-                          tab_years, tab_months, tab_daysofweek, tab_hours, tab_maps_sides, tab_hm, tab_table])
+        p = self.build_hist(df_wins_defeats, 'Карта', 'Map', label_orientation=True)
+        if p:
+            tabs.append(Panel(child=p, title='Skill-Maps'))
+
+        p = self.build_hist(df_wins_defeats, 'Размер', 'Size')
+        if p:
+            tabs.append(Panel(child=p, title='Skill-Sizes'))
+
+        p = self.build_hist(df_wins_defeats, 'Сторона', 'Side')
+        if p:
+            tabs.append(Panel(child=p, title='Skill-Sides'))
+
+        p = self.build_hist(df_wins_defeats, series_date, 'Date', visible_xaxis=False, visible_grid=False)
+        if p:
+            tabs.append(Panel(child=p, title='Skill-Dates'))
+
+        p = self.build_hist(df_wins_defeats, 'Год', 'Year')
+        if p:
+            tabs.append(Panel(child=p, title='Skill-Years'))
+
+        p = self.build_hist(df_wins_defeats, 'Месяц', 'Month')
+        if p:
+            tabs.append(Panel(child=p, title='Skill-Months'))
+
+        p = self.build_hist(df_wins_defeats, 'ДеньНедели', 'DayOfWeek')
+        if p:
+            tabs.append(Panel(child=p, title='Skill-DaysOfWeek'))
+
+        p = self.build_hist(df_wins_defeats, 'Час', 'Hour', visible_grid=False)
+        if p:
+            tabs.append(Panel(child=p, title='Skill-Hours'))
+
+        p = self.build_categorical_hist(df_wins_defeats, ['Карта', 'Сторона'], 'Map-Side', label_orientation=True)
+        if p:
+            tabs.append(Panel(child=p, title='Skill-Maps'))
+
+        p = self.heat_map(df_wins_defeats, ['Год', 'Месяц'])
+        if p:
+            tabs.append(Panel(child=p, title='Years-Month'))
+
+        tabs.append(Panel(child=self.common_table(df), title='Common table'))
+
+        tabs = Tabs(tabs=tabs)
         show(tabs)
         logger.debug('End visualuzation')
 
         if not self.save_stats:
             sleep(6)  # for load file
-            remove(f"Fights_{player_name}.html")
+            remove(file_name)
 
     def data_collection(self, number_of_pages: int) -> list:
         logger.debug('Data collection')
@@ -220,12 +252,12 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         data.append(self._get_element_list("//div[@id='mtabs-battles']")[2:])
         return data
 
-    def init_web_driver(self) -> bool:
+    def init_web_driver(self, wait=IMPLICITLY_WAIT) -> bool:
         try:
             logger.debug('Init web driver')
             self.driver = webdriver.Chrome(executable_path=PATH_TO_WEBDRIVER[self.browser],
                                            desired_capabilities=CAPABILITIES[self.browser])
-            self.driver.implicitly_wait(IMPLICITLY_WAIT)
+            self.driver.implicitly_wait(wait)
             return True
         except SessionNotCreatedException:
             logging.warning('SessionNotCreatedException in init_web_driver()')
@@ -295,7 +327,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             with open(directory[0], "w", encoding='utf-8') as f:
                 f.write(data)
 
-    def build_graph_skill_fights(self, df: DataFrame) -> Panel:
+    def build_graph_skill_fights(self, df: DataFrame):
         logger.debug('Graph skill-fights')
         y = df.Скилл
         x = range(1, len(y) + 1)
@@ -344,12 +376,14 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         url = 'https://fastcup.net/fight.html?id=@fights'
         taptool = p.select(type=TapTool)
         taptool.callback = OpenURL(url=url)
-        return Panel(child=p, title='Skill-Fights')
+        return p
 
-    def build_hist(self, df: DataFrame, group_by_col, name: str, visible_xaxis=True, visible_grid=True, label_orientation=False) -> Panel:
+    def build_hist(self, df: DataFrame, group_by_col, name: str, visible_xaxis=True, visible_grid=True, label_orientation=False):
         logger.debug(f'Build hist {name}')
         # prepare data
         df_group = df.groupby(group_by_col).Скилл
+        if len(df_group.sum()) <= 1:
+            return False
         wins_defeats_count = df.groupby(group_by_col).Результат.value_counts()
 
         x = list(df_group.sum().index)
@@ -379,7 +413,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             ('Skill', '@y{0.0}'),
             ('Average skill', '@avg_skill{0.000}'),
             ('Number of fights', '@number_of_fights'),
-            (name % '', '@x'),
+            (name, '@x'),
             ('K/D', '@kills/@deaths'),
             ('Wins', '@wins'),
             ('Defeats', '@defeats')
@@ -409,13 +443,15 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             p.grid.grid_line_color = None
             p.axis.major_tick_line_color = None
 
-        return Panel(child=p, title='Skill-' + name % 's')
+        return p
 
     def build_categorical_hist(self, df: DataFrame, group_by_col, name: str, visible_xaxis=True,
-                               visible_grid=True, label_orientation=False) -> Panel:
+                               visible_grid=True, label_orientation=False):
         logger.debug('Categorical hist')
         # prepare data
         df_group = df.groupby(group_by_col)
+        if len(df_group.sum()) <= 1:
+            return False
         wins_defeats_count = df.groupby(group_by_col).Результат.value_counts()
         # sides_count = df.groupby(group_by_col).Сторона.value_counts()
 
@@ -449,7 +485,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             ('Skill', '@y{0.0}'),
             ('Average skill', '@avg_skill{0.000}'),
             ('Number of fights', '@number_of_fights'),
-            (name % '', '@x'),
+            (name, '@x'),
             ('K/D', '@kills/@deaths'),
             ('Wins', '@wins'),
             ('Defeats', '@defeats')
@@ -479,11 +515,13 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             p.grid.grid_line_color = None
             p.axis.major_tick_line_color = None
 
-        return Panel(child=p, title='Skill-' + name % 's')
+        return p
 
-    def heat_map(self, df: DataFrame, group_by_col) -> Panel:
+    def heat_map(self, df: DataFrame, group_by_col):
         logger.debug('Heat map')
         df_group = df.groupby(group_by_col)
+        if len(df_group.sum()) <= 1:
+            return False
         wins_defeats_count = df.groupby(group_by_col).Результат.value_counts()
 
         months = df_group.sum().reset_index().Месяц.values
@@ -570,7 +608,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
                              label_standoff=13, border_line_color=None, location=(0, 0))
         p.add_layout(color_bar, 'right')
 
-        return Panel(child=p, title='Years-Months')
+        return p
 
     def _get_element_list(self, xpath: str):
         return self.driver.find_element(By.XPATH, xpath).text.split('\n')
@@ -593,7 +631,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
 
         data_table = DataTable(source=source, columns=columns, width=800)
 
-        return Panel(child=data_table, title='Other statistics')
+        return data_table
 
     @staticmethod
     def create_dataframe(dt: [list]) -> DataFrame:
