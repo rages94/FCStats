@@ -1,3 +1,6 @@
+# form.ui -> form.py: pyuic5 form.ui -o form.py
+# build one file: pyinstaller -F -w --clean FCStats.py
+# build one dir: pyinstaller -D -w  --clean --add-data "chromedriver.exe";"." --add-data "geckodriver.exe";"." --add-data "fcstats.qss";"." FCStats.py
 import sys
 from time import strftime, localtime, sleep
 from os import path, remove, makedirs, getcwd
@@ -18,6 +21,23 @@ from bokeh.transform import dodge
 
 import form
 
+
+def make_dir(path_):
+    if not path.exists(path_):
+        makedirs(path_)
+
+
+def read_file(filename: str) -> str:
+    with open(filename, 'r', encoding='utf-8') as f:
+        return f.read()
+
+
+def replace_unsupported_chars(string: str) -> str:
+    for i in r'/\:*?«<>|"':
+        string = string.replace(i, '_')
+    return string
+
+
 # --------------------- CONFIG ---------------------
 # selenium settings
 CAPABILITIES = {'Chrome': {'browserName': 'chrome', 'version': 'latest', 'javascriptEnabled': True},
@@ -33,22 +53,11 @@ FIGHT = 'https://fastcup.net/fight.html?id=%s'
 DAY_TO_STR = {1: 'Monday', 2: 'Tuesday', 3: 'Wednesday', 4: 'Thursday', 5: 'Friday', 6: 'Saturday', 7: 'Sunday'}
 STYLES_FILE = 'fcstats.qss'
 FONT = 'Segoe UI'
-LOG_DIRECTORY = 'log'
+LOG_DIRECTORY = 'logs'
 
 # --------------------------------------------------
 
-
-def make_dir(path_):
-    if not path.exists(path_):
-        makedirs(path_)
-
-
-def read_file(filename: str) -> str:
-    with open(filename, 'r', encoding='utf-8') as f:
-        return f.read()
-
-
-# for logs
+# --------------------- FOR LOGS -------------------
 log_file_name = "log_%s.txt" % strftime("%Y-%m-%d", localtime())
 make_dir(LOG_DIRECTORY)
 logger = logging.getLogger("log")
@@ -60,10 +69,9 @@ fh.setFormatter(formatter)
 # add handler to logger object
 logger.addHandler(fh)
 
+# --------------------------------------------------
 
-# form.ui -> form.py: pyuic5 form.ui -o form.py
-# build one file: pyinstaller -F -w --clean FCStats.py
-# build one dir: pyinstaller -D -w  --clean --add-data "chromedriver.exe";"." --add-data "geckodriver.exe";"." --add-data "fcstats.qss";"." FCStats.py
+
 class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
     def __init__(self):
         # access to variables and methods form.py
@@ -90,6 +98,8 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         self.width = int(screen_size.width() * 0.95)
 
     def main_process(self):
+        """Searching player, collect data and visualization
+        """
         logger.debug('Start collecting data')
         # init messagebox
         msg = QtWidgets.QMessageBox
@@ -124,6 +134,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         except WebDriverException:
             logger.warning(f'WebDriverException in search player, {self.browser}')
         except AttributeError as e:
+            self.driver.close()
             logger.warning(f'%s in search player, {self.browser}' % e)
         except Exception as e:
             logger.error(str(e))
@@ -143,6 +154,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
                 logger.info("Нет данных")
                 msg.about(self, "Внимание!", "Нет данных!")
             except AttributeError as e:
+                self.driver.close()
                 logger.warning(f'%s in collection, {self.browser}' % e)
             except NoSuchWindowException:
                 logger.warning(f'NoSuchWindowException in collection, {self.browser}')
@@ -158,7 +170,100 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
                     logger.error(str(e))
                     msg.about(self, "Ошибка!", 'Что-то пошло не так...')
 
+    def init_web_driver(self, wait=IMPLICITLY_WAIT) -> bool:
+        try:
+            logger.debug('Init web driver')
+            self.driver = webdriver.Chrome(executable_path=PATH_TO_WEBDRIVER[self.browser],
+                                           desired_capabilities=CAPABILITIES[self.browser])
+            self.driver.implicitly_wait(wait)
+            return True
+        except SessionNotCreatedException:
+            logging.warning('SessionNotCreatedException in init_web_driver()')
+            return False
+
+    def _get_element_list(self, xpath: str):
+        return self.driver.find_element(By.XPATH, xpath).text.split('\n')
+
+    def search_player(self, player_name: str):
+        logger.debug('Search player')
+        element = self.driver.find_element(By.XPATH, "//input[@placeholder='Ник или STEAM_0:X:XXXXXX']")
+        element.send_keys(player_name)
+        element.send_keys(Keys.ENTER)
+
+    def data_collection(self, number_of_pages: int) -> list:
+        logger.debug('Data collection')
+        data = []
+        for i in range(2, number_of_pages + 1):
+            data.append(self._get_element_list("//div[@id='mtabs-battles']")[2:])
+            # click next page
+            self.driver.find_element(By.XPATH, "//div[@id='mtabs-battles']/a[contains(text(), '%d')]" % i).click()
+            # because fastcup raise "HTTP 429 Too Many Requests" :\
+            sleep(SLEEP_ON_PAGE[self.browser])
+        data.append(self._get_element_list("//div[@id='mtabs-battles']")[2:])
+        return data
+
+    def data_preparation(self, data: str) -> [list]:
+        """Don't try to understand it, just believe
+        """
+        logger.debug('Data preparation')
+        dt = []
+        for line in data.split("\n"):
+            if not line:
+                continue
+            ln = line.split()
+            x = ln.index("CS")
+            fight = ln[0]
+            date, time = self.__get_date_time(ln[1:x])
+            year, month, day = date.split('-')
+            hour, minutes = time.split(':')
+            type_game = " ".join(ln[x:x+3])
+            xvsx = "".join(ln[x+4:x+7])
+            mp = ln[x+7]
+            side, result, k, d, sep = "", "", "", "", ""
+            points = 0.0
+            exp = 0
+            side = "T" if ln[x+8] == "A" else "CT"
+            if ln[x+9] == "Не":
+                result = " ".join(ln[x+9:x+11])
+            elif ln[x+9] == "Ошибка":
+                result = ln[x+9]
+            else:
+                result = ln[x+9]
+                try:
+                    k, d = map(int, ln[x+10].split('/'))
+                except ValueError:
+                    k, d = 0, 0
+                try:
+                    points = float(ln[x+11])
+                except IndexError:
+                    points = 0.0
+                try:
+                    if ln[x+12][0] == "(":
+                        sep = ln[x+12]
+                        exp = ln[x+13]
+                    else:
+                        sep = ""
+                        try:
+                            exp = ln[x+12]
+                        except IndexError:
+                            pass
+                except IndexError:
+                    pass
+            dt.append([fight, date, time, year, month, day, hour, minutes, type_game,
+                      xvsx, mp, side, result, k, d, points, sep, exp])
+        return dt
+
+    def save_data(self, data):
+        """"Save data in text file
+        """
+        directory = QtWidgets.QFileDialog.getSaveFileName(self, "Save file", filter="*.txt")
+        if directory[0]:
+            with open(directory[0], "w", encoding='utf-8') as f:
+                f.write(data)
+
     def load_data(self):
+        """Load data and visualization
+        """
         try:
             logger.debug('Load from file')
             self.save_stats = self.checkbox_save_stats.isChecked()
@@ -184,7 +289,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         series_date = [str(date).split()[0] for date in df_wins_defeats.Дата.sort_values()]
         tabs = []
 
-        player_name = self.replace_unsupported_chars(player_name)
+        player_name = replace_unsupported_chars(player_name)
         file_name = f"Fights_{player_name}.html"
         output_file(file_name, title='FCStats')
 
@@ -239,93 +344,6 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         if not self.save_stats:
             sleep(6)  # for load file
             remove(file_name)
-
-    def data_collection(self, number_of_pages: int) -> list:
-        logger.debug('Data collection')
-        data = []
-        for i in range(2, number_of_pages + 1):
-            data.append(self._get_element_list("//div[@id='mtabs-battles']")[2:])
-            # click next page
-            self.driver.find_element(By.XPATH, "//div[@id='mtabs-battles']/a[contains(text(), '%d')]" % i).click()
-            # because fastcup raise "HTTP 429 Too Many Requests" :\
-            sleep(SLEEP_ON_PAGE[self.browser])
-        data.append(self._get_element_list("//div[@id='mtabs-battles']")[2:])
-        return data
-
-    def init_web_driver(self, wait=IMPLICITLY_WAIT) -> bool:
-        try:
-            logger.debug('Init web driver')
-            self.driver = webdriver.Chrome(executable_path=PATH_TO_WEBDRIVER[self.browser],
-                                           desired_capabilities=CAPABILITIES[self.browser])
-            self.driver.implicitly_wait(wait)
-            return True
-        except SessionNotCreatedException:
-            logging.warning('SessionNotCreatedException in init_web_driver()')
-            return False
-
-    def data_preparation(self, data: str) -> [list]:
-        """
-        Don't try to understand it, just believe"""
-        logger.debug('Data preparation')
-        dt = []
-        for line in data.split("\n"):
-            if not line:
-                continue
-            ln = line.split()
-            x = ln.index("CS")
-            fight = ln[0]
-            date, time = self.__get_date_time(ln[1:x])
-            year, month, day = date.split('-')
-            hour, minutes = time.split(':')
-            type_game = " ".join(ln[x:x+3])
-            xvsx = "".join(ln[x+4:x+7])
-            mp = ln[x+7]
-            side, result, k, d, sep = "", "", "", "", ""
-            points = 0.0
-            exp = 0
-            side = "T" if ln[x+8] == "A" else "CT"
-            if ln[x+9] == "Не":
-                result = " ".join(ln[x+9:x+11])
-            elif ln[x+9] == "Ошибка":
-                result = ln[x+9]
-            else:
-                result = ln[x+9]
-                try:
-                    k, d = map(int, ln[x+10].split('/'))
-                except ValueError:
-                    k, d = 0, 0
-                try:
-                    points = float(ln[x+11])
-                except IndexError:
-                    points = 0.0
-                try:
-                    if ln[x+12][0] == "(":
-                        sep = ln[x+12]
-                        exp = ln[x+13]
-                    else:
-                        sep = ""
-                        try:
-                            exp = ln[x+12]
-                        except IndexError:
-                            pass
-                except IndexError:
-                    pass
-            dt.append([fight, date, time, year, month, day, hour, minutes, type_game,
-                      xvsx, mp, side, result, k, d, points, sep, exp])
-        return dt
-
-    def search_player(self, player_name: str):
-        logger.debug('Search player')
-        element = self.driver.find_element(By.XPATH, "//input[@placeholder='Ник или STEAM_0:X:XXXXXX']")
-        element.send_keys(player_name)
-        element.send_keys(Keys.ENTER)
-
-    def save_data(self, data):
-        """"Save data in text file"""
-        directory = QtWidgets.QFileDialog.getSaveFileName(self, "Save file", filter="*.txt")
-        if directory[0]:
-            with open(directory[0], "w", encoding='utf-8') as f:
-                f.write(data)
 
     def build_graph_skill_fights(self, df: DataFrame):
         logger.debug('Graph skill-fights')
@@ -610,18 +628,28 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
 
         return p
 
-    def _get_element_list(self, xpath: str):
-        return self.driver.find_element(By.XPATH, xpath).text.split('\n')
-
     @staticmethod
     def common_table(df: DataFrame):
         logger.debug('Common table')
         ddf = df.Игра.groupby(df.Результат).count().to_frame()
+        div_skill = df.where(df.Деление != '').dropna()
+        div_skill_m = div_skill.where(df.Скилл <= 0).dropna()
+        div_skill_p = div_skill.where(df.Скилл > 0).dropna()
+        div_skill_m_sum = sum(div_skill_m.Скилл.values) * 3
+        div_skill_p_sum = sum(div_skill_p.Скилл.values) * 3
+
+        y = list(ddf.index.values)
+        fights_count = list(ddf.Игра.values)
+        skill_sum = list(df.Скилл.groupby(df.Результат).sum().values)
+
+        y.extend(['Разделенный скилл -', 'Разделенный скилл +'])
+        fights_count.extend([len(div_skill_m), len(div_skill_p)])
+        skill_sum.extend([div_skill_m_sum, div_skill_p_sum])
 
         source = ColumnDataSource(data=dict(
-            y=ddf.index.values,
-            fights_count=ddf.values,
-            skill_sum=df.Скилл.groupby(df.Результат).sum().values
+            y=y,
+            fights_count=fights_count,
+            skill_sum=skill_sum
         ))
         columns = [
             TableColumn(field="y", title="Результат"),
@@ -665,12 +693,6 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             time = lst_dt[1]
             date = (now - timedelta(days=days_to_int[lst_dt[0]])).strftime("%Y-%m-%d")
         return date, time
-
-    @staticmethod
-    def replace_unsupported_chars(string: str) -> str:
-        for i in r'/\:*?«<>|"':
-            string = string.replace(i, '_')
-        return string
 
 
 def main():
