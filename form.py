@@ -68,7 +68,7 @@ class Ui_form_fcstats(object):
         self.button_create_stats.setText(_translate("form_fcstats", "Создать"))
         self.combox_browsers.setCurrentText(_translate("form_fcstats", "Chrome"))
         self.combox_browsers.setItemText(0, _translate("form_fcstats", "Chrome"))
-        self.combox_browsers.setItemText(1, _translate("form_fcstats", "FireFox"))
+        self.combox_browsers.setItemText(1, _translate("form_fcstats", "Firefox"))
         self.line_edit.setPlaceholderText(_translate("form_fcstats", "Ник или STEAM_0:X:XXXXXX"))
         self.button_load_file.setText(_translate("form_fcstats", "Загрузить из файла"))
         self.checkbox_save_in_file.setText(_translate("form_fcstats", "Сохранить данные"))
