@@ -6,6 +6,7 @@ from time import strftime, localtime, sleep
 from os import path, remove, makedirs, getcwd
 from datetime import datetime, timedelta
 import logging
+import sqlite3
 
 from PyQt5 import QtWidgets, QtGui
 from selenium import webdriver
@@ -54,6 +55,7 @@ DAY_TO_STR = {1: 'Monday', 2: 'Tuesday', 3: 'Wednesday', 4: 'Thursday', 5: 'Frid
 STYLES_FILE = 'fcstats.qss'
 FONT = 'Segoe UI'
 LOG_DIRECTORY = 'logs'
+DB_NAME = 'fcstats.db'
 
 # --------------------------------------------------
 
@@ -97,14 +99,60 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         self.height = int(screen_size.height() * 0.85)
         self.width = int(screen_size.width() * 0.95)
 
+    @staticmethod
+    def create_db():
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+
+        cursor.execute("""CREATE TABLE fights
+                          (id text, 
+                          date text, 
+                          time text,
+                          year text, 
+                          month text, 
+                          day text,
+                          hour text, 
+                          minutes text, 
+                          type_game text, 
+                          xvsx text, 
+                          map text, 
+                          side text, 
+                          result text, 
+                          kills int, 
+                          deaths int, 
+                          points real, 
+                          sep_skill text, 
+                          experience int, 
+                          player text)
+                       """)
+        conn.close()
+
+    @staticmethod
+    def db_insert_data(player_name: str, data: [list]):
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        cursor.execute(f"DELETE FROM fights WHERE player = '{player_name}'")
+        cursor.executemany(f"INSERT INTO fights VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'{player_name}')", data)
+        conn.commit()
+        conn.close()
+
+    @staticmethod
+    def db_select_data(player_name: str) -> [tuple]:
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        data = cursor.execute(f"Select * from fights where player = '{player_name}'").fetchall()
+        conn.close()
+        return data
+
     def main_process(self):
         """Searching player, collect data and visualization
         """
         logger.debug('Start collecting data')
         # init messagebox
         msg = QtWidgets.QMessageBox
-
-        save_in_file = self.checkbox_save_in_file.isChecked()
+        # check existing db
+        if not path.exists(DB_NAME):
+            self.create_db()
         self.save_stats = self.checkbox_save_stats.isChecked()
         self.browser = self.combox_browsers.currentText()
         player_name = self.line_edit.text()
@@ -147,8 +195,8 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
                 self.driver.close()
                 data = ["\n".join(page) for page in data]
                 data = "\n".join(data)
-                if save_in_file:
-                    self.save_data(data)
+                prepared_data = self.data_preparation(data)
+                self.db_insert_data(player_name, prepared_data)
             except ValueError:
                 self.driver.close()
                 logger.info("Нет данных")
@@ -165,7 +213,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
                 msg.about(self, "Ошибка!", 'Что-то пошло не так...')
             else:
                 try:
-                    self.visualization(data, player_name)
+                    self.visualization(prepared_data, player_name)
                 except Exception as e:
                     logger.error(str(e))
                     msg.about(self, "Ошибка!", 'Что-то пошло не так...')
@@ -253,40 +301,37 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
                       xvsx, mp, side, result, k, d, points, sep, exp])
         return dt
 
-    def save_data(self, data):
-        """"Save data in text file
-        """
-        directory = QtWidgets.QFileDialog.getSaveFileName(self, "Save file", filter="*.txt")
-        if directory[0]:
-            with open(directory[0], "w", encoding='utf-8') as f:
-                f.write(data)
-
     def load_data(self):
         """Load data and visualization
         """
         try:
-            logger.debug('Load from file')
+            logger.debug('Load from database')
+            # check existing db
+            if not path.exists(DB_NAME):
+                self.create_db()
+            # init messagebox
+            msg = QtWidgets.QMessageBox
+            player_name = self.line_edit.text()
             self.save_stats = self.checkbox_save_stats.isChecked()
-            directory = QtWidgets.QFileDialog.getOpenFileNames(self, "Загрузка файлов", filter="*.txt")
-            path_to_files = directory[0]
-            if path_to_files:
-                data = []
-                for path_to_file in path_to_files:
-                    with open(path_to_file, 'r', encoding='utf-8') as f:
-                        data.append(f.read())
-                file_name = path_to_files[0].split('/')[-1][:-4] if len(path_to_files) == 1 else 'Union'
-                self.visualization('\n'.join(data), file_name)
+            if not player_name:
+                msg.about(self, "Внимание!", "<p align='left'>Введите ник игрока!</p>")
+                return
+            data = self.db_select_data(player_name)
+            prepared_data = list(map(lambda x: x[:-1], data))
+            if not len(prepared_data):
+                msg.about(self, "Внимание!", "<p align='left'>Нет данных!</p>")
+                return
+            self.visualization(prepared_data, player_name)
         except Exception as e:
             logger.error(str(e))
             msg = QtWidgets.QMessageBox
             msg.about(self, "Ошибка!", 'Что-то пошло не так...')
 
-    def visualization(self, data, player_name):
+    def visualization(self, prepared_data, player_name):
         logger.debug('Start visualuzation')
-        prepared_data = self.data_preparation(data)
         df = self.create_dataframe(prepared_data)
         df_wins_defeats = df[(df.Результат == "Победа") | (df.Результат == "Поражение")]
-        series_date = [str(date).split()[0] for date in df_wins_defeats.Дата.sort_values()]
+        dates = [str(date).split()[0] for date in df_wins_defeats.Дата.sort_values()]
         tabs = []
 
         player_name = replace_unsupported_chars(player_name)
@@ -307,7 +352,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         if p:
             tabs.append(Panel(child=p, title='Skill-Sides'))
 
-        p = self.build_hist(df_wins_defeats, series_date, 'Date', visible_xaxis=False, visible_grid=False)
+        p = self.build_hist(df_wins_defeats, dates, 'Date', visible_xaxis=False, visible_grid=False)
         if p:
             tabs.append(Panel(child=p, title='Skill-Dates'))
 
@@ -673,6 +718,8 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
 
     @staticmethod
     def __get_date_time(lst_dt: [str]) -> (str, str):
+        """Processing values like 'Сегодня 17:39', '42 минуты назад' etc.
+        """
         month_to_num = dict(января='01', февраля='02', марта='03', апреля='04', мая='05', июня='06',
                             июля='07', августа='08', сентября='09', октября='10', ноября='11', декабря='12')
         days_to_int = dict(Сегодня=0, Вчера=1, Позавчера=2)
