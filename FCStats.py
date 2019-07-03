@@ -1,6 +1,7 @@
 # form.ui -> form.py: pyuic5 form.ui -o form.py
 # build one file: pyinstaller -F -w --clean FCStats.py
-# build one dir: pyinstaller -D -w  --clean --add-data "chromedriver.exe";"." --add-data "geckodriver.exe";"." --add-data "fcstats.qss";"." FCStats.py
+# build one dir: pyinstaller -D -w  --clean --icon=fcstats.ico --add-data "chromedriver.exe";"." --add-data "geckodriver.exe";"." --add-data "fcstats.qss";"." FCStats.py
+# https://stackoverflow.com/questions/33983860/hide-chromedriver-console-in-python - to hide console
 import sys
 from time import strftime, localtime, sleep
 from os import path, remove, makedirs, getcwd
@@ -49,8 +50,8 @@ PATH_TO_WEBDRIVER = {'Chrome': 'chromedriver.exe',
 # because fastcup raise "HTTP 429 Too Many Requests" :\
 SLEEP_ON_PAGE = {'Chrome': 0.4,
                  'Firefox': 0}
-PLAYERS = 'https://fastcup.net/players.html'
-FIGHT = 'https://fastcup.net/fight.html?id=%s'
+PLAYERS = 'https://old.fastcup.net/players.html'
+FIGHT = 'https://old.fastcup.net/fight.html?id=%s'
 DAY_TO_STR = {1: 'Monday', 2: 'Tuesday', 3: 'Wednesday', 4: 'Thursday', 5: 'Friday', 6: 'Saturday', 7: 'Sunday'}
 STYLES_FILE = 'fcstats.qss'
 FONT = 'Segoe UI'
