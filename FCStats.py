@@ -1,6 +1,6 @@
 # form.ui -> form.py: pyuic5 form.ui -o form.py
-# build one file: pyinstaller -F -w --clean FCStats.py
-# build one dir: pyinstaller -D -w  --clean --icon=fcstats.ico --add-data "chromedriver.exe";"." --add-data "geckodriver.exe";"." --add-data "fcstats.qss";"." FCStats.py
+# build one file: pyinstaller -F -w --clean --icon=fcstats.ico FCStats.py
+# build one dir: pyinstaller -D -w  --clean --icon=fcstats.ico --add-data "chromedriver.exe";"." --add-data "geckodriver.exe";"." --add-data "fcstats.qss";"." --add-data "fcstats.ico";"." FCStats.py
 # https://stackoverflow.com/questions/33983860/hide-chromedriver-console-in-python - to hide console
 import sys
 from time import strftime, localtime, sleep
@@ -54,6 +54,7 @@ PLAYERS = 'https://old.fastcup.net/players.html'
 FIGHT = 'https://old.fastcup.net/fight.html?id=%s'
 DAY_TO_STR = {1: 'Monday', 2: 'Tuesday', 3: 'Wednesday', 4: 'Thursday', 5: 'Friday', 6: 'Saturday', 7: 'Sunday'}
 STYLES_FILE = 'fcstats.qss'
+ICON = 'fcstats.ico'
 FONT = 'Segoe UI'
 LOG_DIRECTORY = 'logs'
 DB_NAME = 'fcstats.db'
@@ -84,6 +85,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         self.setupUi(self)
         self.setFont(QtGui.QFont(FONT, 8))
         self.setStyleSheet(read_file(STYLES_FILE))
+        self.setWindowIcon(QtGui.QIcon(ICON))
 
         # start function by button
         self.button_create_stats.clicked.connect(self.main_process)
