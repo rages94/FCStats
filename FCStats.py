@@ -93,11 +93,10 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         self.button_create_stats.setAutoDefault(True)
         self.line_edit.returnPressed.connect(self.button_create_stats.click)
 
-        self.button_load_file.clicked.connect(self.load_data)
+        self.button_load.clicked.connect(self.load_data)
 
         self.driver = None
         self.browser = None
-        self.save_stats = None
         screen_size = QtWidgets.QDesktopWidget().availableGeometry()
         self.height = int(screen_size.height() * 0.85)
         self.width = int(screen_size.width() * 0.95)
@@ -156,7 +155,6 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         # check existing db
         if not path.exists(DB_NAME):
             self.create_db()
-        self.save_stats = self.checkbox_save_stats.isChecked()
         self.browser = self.combox_browsers.currentText()
         player_name = self.line_edit.text()
         if not path.exists(PATH_TO_WEBDRIVER[self.browser]):
@@ -315,7 +313,6 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
             # init messagebox
             msg = QtWidgets.QMessageBox
             player_name = self.line_edit.text()
-            self.save_stats = self.checkbox_save_stats.isChecked()
             if not player_name:
                 msg.about(self, "Внимание!", "<p align='left'>Введите ник игрока!</p>")
                 return
@@ -388,10 +385,6 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
         tabs = Tabs(tabs=tabs)
         show(tabs)
         logger.debug('End visualuzation')
-
-        if not self.save_stats:
-            sleep(6)  # for load file
-            remove(file_name)
 
     def build_graph_skill_fights(self, df: DataFrame):
         logger.debug('Graph skill-fights')
