@@ -77,6 +77,7 @@ logger.addHandler(fh)
 
 
 class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
+class MainWindow(QtWidgets.QMainWindow, form.Ui_form_fcstats):
     def __init__(self):
         # access to variables and methods form.py
         super().__init__()
@@ -222,8 +223,13 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
     def init_web_driver(self, wait=IMPLICITLY_WAIT) -> bool:
         try:
             logger.debug('Init web driver')
+            options = webdriver.ChromeOptions()
+            options.add_argument('--no-sandbox')
+            options.add_argument('--window-size=1920,1080')
+            options.add_argument('--headless')
             self.driver = webdriver.Chrome(executable_path=PATH_TO_WEBDRIVER[self.browser],
-                                           desired_capabilities=CAPABILITIES[self.browser])
+                                           desired_capabilities=CAPABILITIES[self.browser],
+                                           chrome_options=options)
             self.driver.implicitly_wait(wait)
             return True
         except SessionNotCreatedException:
@@ -432,7 +438,7 @@ class ExampleApp(QtWidgets.QMainWindow, form.Ui_form_fcstats):
                              label_standoff=21, border_line_color=None, location=(0, 0))
         p.add_layout(color_bar, 'right')
 
-        url = 'https://fastcup.net/fight.html?id=@fights'
+        url = 'https://old.fastcup.net/fight.html?id=@fights'
         taptool = p.select(type=TapTool)
         taptool.callback = OpenURL(url=url)
         return p
@@ -742,7 +748,7 @@ def main():
     try:
         logger.debug('Start program')
         app = QtWidgets.QApplication(sys.argv)
-        window = ExampleApp()
+        window = MainWindow()
         window.show()
         app.exec_()
         logger.debug('End program')
