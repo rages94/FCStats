@@ -1,6 +1,6 @@
 requests==2.21.0
 selenium==3.141.0
-pywin32==224
+pywin32==301
 pandas==0.24.1
 numpy==1.16.2
 bokeh==1.0.4
